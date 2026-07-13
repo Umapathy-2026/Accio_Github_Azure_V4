@@ -40,7 +40,8 @@
     </div>
 
 <div class="card" style="padding:0;overflow:hidden;">
-    <table id="ticketTable" style="display:block;">
+<div class="table-wrap">
+    <table id="ticketTable">
         <thead>
             <tr>
                 <th onclick="sortTable(0)" data-col="0">Ticket # <span class="sort-arrow"></span></th>
@@ -82,6 +83,7 @@
             {% endfor %}
         </tbody>
     </table>
+</div>
     <div id="emptyState" style="display:none;text-align:center;padding:64px 32px;color:var(--text-muted);">
         <i data-lucide="inbox" style="width:40px;height:40px;margin:0 auto 16px;display:block;color:var(--text-faint);"></i>
         <p style="font-size:15px;font-weight:500;margin-bottom:6px">No tickets match your filters</p>

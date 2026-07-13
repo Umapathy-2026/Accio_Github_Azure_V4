@@ -69,14 +69,6 @@
             66%      { transform: translate(-20px, 20px) scale(0.9); }
         }
 
-        /* ── Particle canvas (above background, below content) ── */
-        #particle-canvas {
-            position: fixed;
-            inset: 0;
-            z-index: 1;
-            pointer-events: none;
-        }
-
         .nav-item {
             display: flex; align-items: center; gap: 10px;
             padding: 8px 16px; border-radius: 8px; margin: 2px 8px;
@@ -192,10 +184,31 @@
         .app-shell { display:flex; min-height:calc(100vh - 56px); margin-top:56px; position: relative; z-index: 2; }
         .sidebar { width:240px; background: rgba(255,255,255,0.04); backdrop-filter: blur(20px) saturate(160%);
             -webkit-backdrop-filter: blur(20px) saturate(160%);
-            border-right:1px solid var(--border); height:calc(100vh - 56px); position:fixed; overflow-y:auto; z-index: 2; }
+            border-right:1px solid var(--border); height:calc(100vh - 56px); position:fixed; overflow-y:auto; z-index: 60; transition: transform 220ms ease; }
         .main-content { margin-left:240px; flex:1; min-height:calc(100vh - 56px);
             overflow-y:auto; padding:32px; position: relative; z-index: 2; }
-        @media (max-width: 768px) { .sidebar { display:none; } .main-content { margin-left:0; } }
+
+        /* Mobile sidebar backdrop */
+        .sidebar-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:55; display:none; }
+        .sidebar-backdrop.open { display:block; }
+
+        /* Hamburger button (mobile only) */
+        .hamburger { display:none; background:none; border:none; cursor:pointer; padding:8px; border-radius:8px; color:var(--text); transition:background 150ms; }
+        .hamburger:hover { background:rgba(255,255,255,0.08); }
+        .hamburger svg { width:22px; height:22px; display:block; }
+
+        /* Table scroll wrapper for small screens */
+        .table-wrap { width:100%; overflow-x:auto; }
+
+        @media (max-width: 768px) {
+            .sidebar { transform:translateX(-100%); box-shadow:0 0 40px rgba(0,0,0,0.4); }
+            .sidebar.open { transform:translateX(0); }
+            .main-content { margin-left:0; padding:16px; }
+            .hamburger { display:inline-flex; }
+        }
+        @media (max-width: 480px) {
+            .main-content { padding:12px; }
+        }
 
         .header { height:56px; background: rgba(255,255,255,0.05); backdrop-filter: blur(20px) saturate(180%);
             -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -311,6 +324,14 @@
             .bulk-bar { left:0; flex-direction:column; gap:8px; }
             .toast { min-width:auto; max-width:calc(100vw - 40px); }
             .notif-panel { width:calc(100vw - 32px); right:16px; }
+            .header { padding:0 12px; }
+            .header-right .badge, .role-badge { display:none; }
+        }
+        @media (max-width: 480px) {
+            .header-logo span { display:none; }
+        }
+        @media (max-width: 768px) {
+            .detail-grid { grid-template-columns:1fr !important; }
         }
     </style>
 </head>
@@ -321,15 +342,17 @@
     <div class="app-orb app-orb-2"></div>
     <div class="app-orb app-orb-3"></div>
 
-    <!-- Particle canvas (mouse-following, all pages) -->
-    <canvas id="particle-canvas"></canvas>
-
     {% if not hide_sidebar %}
     <header class="header">
-        <a href="{% if current_user.role == 'admin' %}{{ url_for('admin.dashboard') }}{% elif current_user.role == 'approver' %}{{ url_for('appr.queue') }}{% else %}{{ url_for('req.dashboard') }}{% endif %}" class="header-logo">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="ACCIO" style="height:36px;width:auto;">
-            <span style="font-size:18px;font-weight:700;color:var(--primary);margin-left:8px;letter-spacing:-0.02em;">ACCIO</span>
-        </a>
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+            <button class="hamburger" onclick="toggleSidebar()" aria-label="Toggle menu">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <a href="{% if current_user.role == 'admin' %}{{ url_for('admin.dashboard') }}{% elif current_user.role == 'approver' %}{{ url_for('appr.queue') }}{% else %}{{ url_for('req.dashboard') }}{% endif %}" class="header-logo">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="ACCIO" style="height:36px;width:auto;">
+                <span style="font-size:18px;font-weight:700;color:var(--primary);margin-left:8px;letter-spacing:-0.02em;">ACCIO</span>
+            </a>
+        </div>
         <div class="header-right">
             <!-- Notification Bell with Tooltip -->
             <div class="notif-bell" onclick="toggleNotifPanel()" style="position:relative;" title="Notifications">
@@ -370,8 +393,9 @@
         </div>
     </div>
 
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
     <div class="app-shell">
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             {% block sidebar %}
             {% if current_user.role == 'admin' %}
                 <div style="padding:12px 0;">
@@ -513,87 +537,29 @@
     </div>
 
     <script>
-        // ── PARTICLE SYSTEM (mouse-following, all pages) ──
-        (function () {
-            const canvas = document.getElementById('particle-canvas');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            let particles = [];
-            let lastSpawn = 0;
-            const MAX_PARTICLES = 100;
-
-            function resize() {
-                canvas.width  = window.innerWidth;
-                canvas.height = window.innerHeight;
-            }
-            resize();
-            window.addEventListener('resize', resize);
-
-            const colors = [
-                { r: 20,  g: 184, b: 166 },
-                { r: 8,   g: 145, b: 178 },
-                { r: 1,   g: 105, b: 111 },
-                { r: 125, g: 211, b: 252 }
-            ];
-
-            function spawnParticles(x, y, count) {
-                for (let i = 0; i < count; i++) {
-                    if (particles.length >= MAX_PARTICLES) break;
-                    const c = colors[Math.floor(Math.random() * colors.length)];
-                    particles.push({
-                        x: x + (Math.random() - 0.5) * 12,
-                        y: y + (Math.random() - 0.5) * 12,
-                        vx: (Math.random() - 0.5) * 1.5,
-                        vy: (Math.random() - 0.5) * 1.5 - 0.5,
-                        size: Math.random() * 2.5 + 1.5,
-                        maxSize: Math.random() * 2.5 + 1.5,
-                        life: 1,
-                        color: c
+        // ── MOBILE SIDEBAR TOGGLE ──
+        function toggleSidebar() {
+            var sidebar = document.getElementById('sidebar');
+            var backdrop = document.getElementById('sidebarBackdrop');
+            if (!sidebar || !backdrop) return;
+            sidebar.classList.toggle('open');
+            backdrop.classList.toggle('open');
+        }
+        // Close sidebar when clicking a nav link on mobile
+        document.addEventListener('DOMContentLoaded', function() {
+            var sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                sidebar.querySelectorAll('.nav-item').forEach(function(item) {
+                    item.addEventListener('click', function() {
+                        if (window.innerWidth <= 768) {
+                            sidebar.classList.remove('open');
+                            var backdrop = document.getElementById('sidebarBackdrop');
+                            if (backdrop) backdrop.classList.remove('open');
+                        }
                     });
-                }
+                });
             }
-
-            document.addEventListener('mousemove', function (e) {
-                const now = Date.now();
-                if (now - lastSpawn > 25) {
-                    lastSpawn = now;
-                    spawnParticles(e.clientX, e.clientY, 1);
-                }
-            });
-
-            document.addEventListener('touchmove', function (e) {
-                if (e.touches.length > 0) {
-                    spawnParticles(e.touches[0].clientX, e.touches[0].clientY, 1);
-                }
-            }, { passive: true });
-
-            function animate() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                for (let i = particles.length - 1; i >= 0; i--) {
-                    const p = particles[i];
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.vy += 0.02;
-                    p.life -= 0.015;
-                    p.size = p.maxSize * p.life;
-                    if (p.life <= 0 || p.size <= 0.1) {
-                        particles.splice(i, 1);
-                        continue;
-                    }
-                    ctx.save();
-                    ctx.globalAlpha = p.life * 0.7;
-                    ctx.shadowBlur = 12;
-                    ctx.shadowColor = 'rgba(' + p.color.r + ',' + p.color.g + ',' + p.color.b + ',1)';
-                    ctx.fillStyle = 'rgba(' + p.color.r + ',' + p.color.g + ',' + p.color.b + ',0.8)';
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-                requestAnimationFrame(animate);
-            }
-            animate();
-        })();
+        });
 
         // ── TOAST NOTIFICATION SYSTEM ──
         window.toast = {

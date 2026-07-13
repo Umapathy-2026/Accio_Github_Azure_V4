@@ -57,14 +57,6 @@
         66%      { transform: translate(-25px, 25px) scale(0.92); }
     }
 
-    /* ── Particle canvas (above everything, but doesn't block interaction) ── */
-    #particle-canvas {
-        position: fixed;
-        inset: 0;
-        z-index: 10;
-        pointer-events: none;
-    }
-
     /* ════════════════════════════════════════════════════════════════════════
        LEFT HALF — Large logo (no panel-level background; shares global gradient)
        ════════════════════════════════════════════════════════════════════════ */
@@ -338,9 +330,6 @@
     <div class="orb orb-2"></div>
     <div class="orb orb-3"></div>
 
-    <!-- Particle canvas (mouse-following, covers entire screen) -->
-    <canvas id="particle-canvas"></canvas>
-
     <!-- ═══ LEFT HALF: Large logo with shine sweep ═══ -->
     <div class="logo-panel">
         <div class="logo-display">
@@ -403,100 +392,6 @@
 </div>
 
 <script>
-    // ── Mouse-following particle system (Antigravity-style) ──
-    (function () {
-        const canvas = document.getElementById('particle-canvas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-        let lastSpawn = 0;
-        const MAX_PARTICLES = 130;
-
-        function resize() {
-            canvas.width  = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        resize();
-        window.addEventListener('resize', resize);
-
-        // Theme-matched particle colors
-        const colors = [
-            { r: 20,  g: 184, b: 166 },  // teal
-            { r: 8,   g: 145, b: 178 },  // cyan
-            { r: 1,   g: 105, b: 111 },  // brand teal
-            { r: 125, g: 211, b: 252 }   // light blue
-        ];
-
-        function spawnParticles(x, y, count) {
-            for (let i = 0; i < count; i++) {
-                if (particles.length >= MAX_PARTICLES) break;
-                const c = colors[Math.floor(Math.random() * colors.length)];
-                particles.push({
-                    x:      x + (Math.random() - 0.5) * 12,
-                    y:      y + (Math.random() - 0.5) * 12,
-                    vx:     (Math.random() - 0.5) * 1.8,
-                    vy:     (Math.random() - 0.5) * 1.8 - 0.6,
-                    size:   Math.random() * 3 + 2,
-                    maxSize: Math.random() * 3 + 2,
-                    life:   1,
-                    color:  c
-                });
-            }
-        }
-
-        // Spawn on mouse move
-        document.addEventListener('mousemove', function (e) {
-            const now = Date.now();
-            if (now - lastSpawn > 18) {
-                lastSpawn = now;
-                spawnParticles(e.clientX, e.clientY, 2);
-            }
-        });
-
-        // Spawn on touch move (mobile)
-        document.addEventListener('touchmove', function (e) {
-            if (e.touches.length > 0) {
-                spawnParticles(e.touches[0].clientX, e.touches[0].clientY, 2);
-            }
-        }, { passive: true });
-
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-
-                // Update physics
-                p.x  += p.vx;
-                p.y  += p.vy;
-                p.vy += 0.025;           // slight gravity
-                p.life -= 0.012;         // fade out
-                p.size = p.maxSize * p.life;
-
-                // Remove dead particles
-                if (p.life <= 0 || p.size <= 0.1) {
-                    particles.splice(i, 1);
-                    continue;
-                }
-
-                // Draw glowing particle
-                ctx.save();
-                ctx.globalAlpha   = p.life * 0.85;
-                ctx.shadowBlur    = 16;
-                ctx.shadowColor   = 'rgba(' + p.color.r + ',' + p.color.g + ',' + p.color.b + ',1)';
-                ctx.fillStyle     = 'rgba(' + p.color.r + ',' + p.color.g + ',' + p.color.b + ',0.85)';
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
-
-            requestAnimationFrame(animate);
-        }
-
-        animate();
-    })();
-
     // Initialise Lucide icons
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof lucide !== 'undefined') lucide.createIcons();

@@ -43,6 +43,7 @@
 <div class="card" style="padding:0;overflow:hidden;">
     {% set history_tickets = current_user.created_tickets|selectattr('current_status', 'in', ['Approved', 'Rejected', 'Sent to Fulfilment'])|list %}
     {% if history_tickets %}
+    <div class="table-wrap">
     <table id="histTable">
         <thead>
             <tr>
@@ -76,6 +77,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     <div id="histEmpty" style="display:none;text-align:center;padding:64px 32px;color:var(--text-muted)">
         <i data-lucide="search-x" style="width:40px;height:40px;margin:0 auto 16px;display:block;color:var(--text-faint)"></i>
         <p style="font-size:15px;font-weight:500;margin-bottom:6px">No matching requests</p>
@@ -127,6 +129,7 @@
 <div class="card" style="padding:0;overflow:hidden;">
     {% set my_tickets = current_user.created_tickets|selectattr('current_status', 'in', ['Pending', 'Under Review', 'Needs Clarification'])|list %}
     {% if my_tickets %}
+    <div class="table-wrap">
     <table id="reqTable">
         <thead>
             <tr>
@@ -160,6 +163,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     <div id="reqEmpty" style="display:none;text-align:center;padding:64px 32px;color:var(--text-muted)">
         <i data-lucide="inbox" style="width:40px;height:40px;margin:0 auto 16px;display:block;color:var(--text-faint)"></i>
         <p style="font-size:15px;font-weight:500;margin-bottom:6px">No tickets match your filters</p>
