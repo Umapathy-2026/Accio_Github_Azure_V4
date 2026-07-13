@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Form Management - ACCIO{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+        <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">Issue Forms</h1>
+        <p style="font-size:14px;color:var(--text-muted);margin-top:4px">Manage ticket issue types and their custom fields</p>
+    </div>
+    <button class="btn-primary" onclick="openCreateFormModal()">
+        <i data-lucide="plus" style="width:16px;height:16px;"></i>
+        Create Form
+    </button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+    <table>
+        <thead>
+            <tr>
+                <th style="width:40px;">#</th>
+                <th>Form Name</th>
+                <th style="width:120px;">Scope</th>
+                <th style="width:140px;">Category</th>
+                <th style="width:80px;">Fields</th>
+                <th style="width:100px;">Status</th>
+                <th style="width:220px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for form in forms %}
+            <tr>
+                <td style="color:var(--text-muted);font-size:13px;">{{ form.id }}</td>
+                <td>
+                    <span style="font-weight:500;">{{ form.name }}</span>
+                </td>
+                <td style="color:var(--text-muted);font-size:13px;">{% if form.scope_obj %}<span class="badge" style="background:var(--primary-light);color:var(--primary);">{{ form.scope_obj.name }}</span>{% else %}<span style="color:var(--text-faint);">—</span>{% endif %}</td>
+                <td style="color:var(--text-muted);font-size:13px;">{% if form.category_obj %}{{ form.category_obj.name }}{% else %}—{% endif %}</td>
+                <td style="color:var(--text-muted);font-size:13px;">{{ form.fields|length }} fields</td>
+                <td>
+                    {% if form.is_active %}
+                    <span class="badge badge-green">Active</span>
+                    {% else %}
+                    <span class="badge badge-red">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display:flex;gap:8px;">
+                        <a href="{{ url_for('admin.edit_form', form_id=form.id) }}" class="btn-secondary" style="padding:4px 12px;font-size:12px;">
+                            <i data-lucide="edit" style="width:12px;height:12px;"></i>
+                            Edit
+                        </a>
+                        <form method="POST" action="{{ url_for('admin.toggle_form', form_id=form.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-secondary" style="padding:4px 12px;font-size:12px;">
+                                {% if form.is_active %}
+                                <i data-lucide="pause" style="width:12px;height:12px;"></i> Deactivate
+                                {% else %}
+                                <i data-lucide="play" style="width:12px;height:12px;"></i> Activate
+                                {% endif %}
+                            </button>
+                        </form>
+                        <button class="btn-danger" style="padding:4px 12px;font-size:12px;" onclick='openDeleteFormModal({{ form.id }}, {{ form.name|tojson }})'>
+                            <i data-lucide="trash-2" style="width:12px;height:12px;"></i>
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Create Form Modal -->
+<div class="modal-overlay" id="createFormModal">
+    <div class="modal" style="width:520px;">
+        <h3 class="modal-title">Create New Issue Form</h3>
+        <p class="modal-desc">Add a new issue type to the system</p>
+        <form method="POST" action="{{ url_for('admin.create_form') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="margin-bottom:16px;">
+                <label class="form-label" for="form_name">Form Name <span style="color:#dc2626;">*</span></label>
+                <input type="text" id="form_name" name="form_name" class="form-input" required placeholder="e.g., Invoice Dispute, Payment Request">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+                <div>
+                    <label class="form-label" for="new_form_scope">Scope <span style="color:#dc2626;">*</span></label>
+                    <select id="new_form_scope" name="scope_id" class="form-input" required>
+                        <option value="">Select scope...</option>
+                        {% for s in active_scopes %}
+                        <option value="{{ s.id }}">{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" for="new_form_category">Category (optional)</label>
+                    <select id="new_form_category" name="category_id" class="form-input">
+                        <option value="">None</option>
+                        {% for c in active_categories %}
+                        <option value="{{ c.id }}" data-scope="{{ c.scope_id }}">{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label class="form-label">Initial Fields</label>
+                <p style="font-size:13px;color:var(--text-muted);margin:4px 0 12px;">You can add more fields after creating the form.</p>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('createFormModal').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn-primary">
+                    <i data-lucide="plus" style="width:16px;height:16px;"></i>
+                    Create Form
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Form Modal -->
+<div class="modal-overlay" id="deleteFormModal">
+  <div class="modal" style="width:520px;">
+    <h3 class="modal-title">Delete Form</h3>
+    <p class="modal-desc" id="deleteFormDesc">Are you sure?</p>
+    <form method="POST" id="deleteFormForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('deleteFormModal').classList.remove('active')">Cancel</button>
+        <button type="submit" class="btn-danger">Delete</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openCreateFormModal() {
+    document.getElementById('form_name').value = '';
+    document.getElementById('createFormModal').classList.add('active');
+}
+
+// Filter categories by selected scope in create form modal
+document.addEventListener('DOMContentLoaded', function() {
+    var scopeSel = document.getElementById('new_form_scope');
+    var catSel = document.getElementById('new_form_category');
+    function filterCats() {
+        if (!scopeSel || !catSel) return;
+        var sid = scopeSel.value;
+        var options = catSel.querySelectorAll('option');
+        options.forEach(function(opt, idx) {
+            if (idx === 0) { opt.hidden = false; return; } // "None"
+            var cs = opt.getAttribute('data-scope');
+            opt.hidden = !!sid && cs !== sid;
+        });
+        // Reset selection if current not matching
+        if (catSel.selectedOptions.length) {
+            var cur = catSel.selectedOptions[0];
+            if (cur && cur.getAttribute('data-scope') && cur.getAttribute('data-scope') !== sid) {
+                catSel.value = '';
+            }
+        }
+    }
+    if (scopeSel) scopeSel.addEventListener('change', filterCats);
+    filterCats();
+});
+
+function openDeleteFormModal(id, name) {
+    document.getElementById('deleteFormDesc').innerHTML = 'Are you sure? This form will be removed from the forms list. <br>Any existing tickets submitted on this form will NOT be affected. <br><br><strong>' + name + '</strong>';
+    var f = document.getElementById('deleteFormForm');
+    f.action = '/admin/forms/' + id + '/delete';
+    document.getElementById('deleteFormModal').classList.add('active');
+}
+</script>
+{% endblock %}

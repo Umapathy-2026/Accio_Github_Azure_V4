@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Request {{ ticket.ticket_number }} - ACCIO{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;">
+    <a href="{{ url_for('req.dashboard') }}" style="font-size:13px;color:var(--text-muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-bottom:12px;">
+        <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Back to My Requests
+    </a>
+    <div style="display:flex;align-items:center;gap:12px;">
+        <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">
+            <span class="ticket-number" style="font-size:22px;">{{ ticket.ticket_number }}</span>
+        </h1>
+        {% set status = ticket.current_status %}
+        {% if status == 'Pending' %}<span class="badge badge-yellow"><i data-lucide="clock" style="width:12px;height:12px;"></i> Pending</span>
+        {% elif status == 'Under Review' %}<span class="badge badge-blue"><i data-lucide="search" style="width:12px;height:12px;"></i> Under Review</span>
+        {% elif status == 'Approved' %}<span class="badge badge-green"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Approved</span>
+        {% elif status == 'Rejected' %}<span class="badge badge-red"><i data-lucide="x-circle" style="width:12px;height:12px;"></i> Rejected</span>
+        {% elif status == 'Needs Clarification' %}<span class="badge badge-orange"><i data-lucide="message-square" style="width:12px;height:12px;"></i> Needs Clarification</span>
+        {% elif status == 'Sent to Fulfilment' %}<span class="badge badge-green"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Sent to Fulfilment</span>
+        {% else %}<span class="badge badge-yellow">{{ status }}</span>{% endif %}
+    </div>
+    <p style="font-size:14px;color:var(--text-muted);margin-top:8px;">{{ ticket.issue_form.name }} &middot; Created {{ ticket.created_at.strftime('%d %b %Y at %H:%M') }}</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+    <!-- Left Column: Ticket Details -->
+    <div>
+        <div class="card" style="margin-bottom:24px;">
+            <h2 style="font-size:16px;font-weight:600;margin:0 0 20px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+                <i data-lucide="info" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
+                Ticket Information
+            </h2>
+            <div style="display:grid;gap:12px;">
+                <div>
+                    <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Subject</span>
+                    <p style="font-size:14px;font-weight:500;margin:4px 0 0;">{{ ticket.subject }}</p>
+                </div>
+                {% if ticket.description %}
+                <div>
+                    <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Description</span>
+                    <p style="font-size:14px;margin:4px 0 0;white-space:pre-wrap;">{{ ticket.description }}</p>
+                </div>
+                {% endif %}
+                <div>
+                    <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Issue Type</span>
+                    <p style="font-size:14px;margin:4px 0 0;font-weight:500;">{{ ticket.issue_form.name }}</p>
+                </div>
+                <div>
+                    <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Created By</span>
+                    <p style="font-size:14px;margin:4px 0 0;">{{ ticket.creator.display_name }} ({{ ticket.creator.email }})</p>
+                </div>
+                {% if ticket.assignee %}
+                <div>
+                    <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Assigned To</span>
+                    <p style="font-size:14px;margin:4px 0 0;">{{ ticket.assignee.display_name }}</p>
+                </div>
+                {% endif %}
+                {% if ticket.attachment_name %}
+                <div>
+                    <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Attachment</span>
+                    <p style="font-size:14px;margin:4px 0 0;">
+                        <i data-lucide="paperclip" style="width:14px;height:14px;vertical-align:middle;"></i>
+                        {{ ticket.attachment_name }}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Dynamic Field Values -->
+        <div class="card" style="margin-bottom:24px;">
+            <h2 style="font-size:16px;font-weight:600;margin:0 0 20px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+                <i data-lucide="database" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
+                Form Data
+            </h2>
+            <div style="display:grid;gap:12px;">
+                {% if ticket.payload %}
+                    {% set skip_keys = ['__clarification__', '__clarification_attachment__'] %}
+                    {% for key, value in ticket.payload.items() %}
+                        {% if key not in skip_keys %}
+                        <div>
+                            <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">{{ key|replace('_', ' ')|title }}</span>
+                            <p style="font-size:14px;margin:4px 0 0;">
+                                {% if value is mapping and value.get('original_name') %}
+                                    <i data-lucide="paperclip" style="width:14px;height:14px;vertical-align:middle;"></i> {{ value.original_name }}
+                                {% else %}
+                                    {{ value }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <p style="font-size:14px;color:var(--text-muted);">No form data available.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if ticket.current_status == 'Needs Clarification' %}
+        <!-- Clarification Form -->
+        <div class="card" style="border:1px solid #fed7aa;">
+            <h2 style="font-size:16px;font-weight:600;margin:0 0 16px;color:#9a3412;">
+                <i data-lucide="message-square" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
+                Provide Clarification
+            </h2>
+            {% if ticket.payload and ticket.payload.get('__clarification__') %}
+            <div style="background:var(--surface-2);border-radius:8px;padding:16px;margin-bottom:16px;">
+                <p style="font-size:13px;color:var(--text-muted);margin:0 0 4px;">Your previous response:</p>
+                <p style="font-size:14px;margin:0;">{{ ticket.payload.get('__clarification__') }}</p>
+            </div>
+            {% endif %}
+            <form method="POST" action="{{ url_for('req.clarify_ticket', ticket_id=ticket.id) }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="margin-bottom:16px;">
+                    <label class="form-label" for="clarification">Clarification Details <span style="color:#dc2626;">*</span></label>
+                    <textarea id="clarification" name="clarification" class="form-input" rows="4" placeholder="Provide the requested clarification..." required></textarea>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label class="form-label">Additional File</label>
+                    <div class="file-upload" onclick="document.getElementById('clar_attachment').click()" style="padding:12px;">
+                        <i data-lucide="paperclip" style="width:16px;height:16px;color:var(--text-muted);"></i>
+                        <span id="clar-attachment-name" style="font-size:13px;color:var(--text-faint);margin-left:8px;">Click to attach a file</span>
+                    </div>
+                    <input type="file" id="clar_attachment" name="clarification_attachment" style="display:none;" onchange="handleFileSelect('clar_attachment', 'clar-attachment-name')">
+                </div>
+                <button type="submit" class="btn-primary">
+                    <i data-lucide="send" style="width:16px;height:16px;"></i>
+                    Submit Clarification
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: Approval Timeline -->
+    <div>
+        <div class="card">
+            <h2 style="font-size:16px;font-weight:600;margin:0 0 20px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+                <i data-lucide="clock" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
+                Activity Timeline
+            </h2>
+            {% if logs %}
+            <div class="timeline">
+                {% for log in logs|reverse %}
+                <div class="timeline-item">
+                    <div class="timeline-dot" style="{% if log.action == 'Rejected' %}background:#dc2626;box-shadow:0 0 0 2px #dc2626;{% elif log.action == 'Approved' %}background:#16a34a;box-shadow:0 0 0 2px #16a34a;{% endif %}"></div>
+                    <div class="timeline-meta">
+                        <strong style="color:var(--text);">{{ log.action }}</strong>
+                        &middot; by {{ log.actor.display_name }}
+                        &middot; <span>{{ log.timestamp.strftime('%d %b %Y at %H:%M') }}</span>
+                    </div>
+                    {% if log.comment %}
+                    <div class="timeline-content" style="background:var(--surface-2);border-radius:8px;padding:12px;margin-top:4px;">
+                        {{ log.comment }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="text-align:center;padding:32px;color:var(--text-muted);">
+                <i data-lucide="clock" style="width:32px;height:32px;color:var(--text-faint);margin-bottom:8px;"></i>
+                <p style="font-size:14px;">No activity recorded yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

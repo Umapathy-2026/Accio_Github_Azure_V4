@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Admin Audit Log - ACCIO{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+        <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">Admin Audit Log</h1>
+        <p style="font-size:14px;color:var(--text-muted);margin-top:4px;">Track all administrative actions performed in the system</p>
+    </div>
+    <button class="btn-primary" onclick="exportAuditExcel()" style="white-space:nowrap;">
+        <i data-lucide="download" style="width:16px;height:16px;"></i> Export to Excel
+    </button>
+</div>
+
+<div class="filter-bar">
+    <div style="position:relative;flex:1;min-width:180px;">
+        <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-faint);pointer-events:none;"></i>
+        <input type="text" class="filter-input" id="auditSearch" placeholder="Search by action, admin, or target..." oninput="debounceAuditFilter()" style="padding-left:36px;">
+    </div>
+    <select class="filter-select" id="auditAction" onchange="applyAuditFilters()">
+        <option value="">All Actions</option>
+    </select>
+    <button class="btn-secondary" id="auditClear" onclick="clearAuditFilters()" style="display:none;padding:6px 12px;font-size:13px;">
+        <i data-lucide="x" style="width:14px;height:14px;"></i> Clear
+    </button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+    {% if logs.items %}
+    <table>
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Admin</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Details</th>
+                <th>IP</th>
+            </tr>
+        </thead>
+        <tbody id="auditBody">
+            {% for log in logs.items %}
+            <tr data-timestamp="{{ log.timestamp.strftime('%Y-%m-%d %H:%M') if log.timestamp else '' }}" data-admin="{{ log.actor.display_name if log.actor else '—' }}" data-action="{{ log.action }}" data-target="{{ (log.target_type or '—') + (' #' + log.target_id|string if log.target_id else '') }}" data-ip="{{ log.ip_address or '—' }}">
+                <td style="font-size:13px;white-space:nowrap;">{{ log.timestamp.strftime('%d %b %Y %H:%M') if log.timestamp else '' }}</td>
+                <td style="font-size:13px;">{{ log.actor.display_name if log.actor else '—' }}</td>
+                <td><span class="badge badge-blue" style="font-size:11px;">{{ log.action }}</span></td>
+                <td style="font-size:13px;">{{ log.target_type or '—' }} {% if log.target_id %}#{{ log.target_id }}{% endif %}</td>
+                <td style="font-size:12px;max-width:250px;">
+                    {% if log.details %}
+                    <details style="cursor:pointer;">
+                        <summary style="font-size:12px;color:var(--primary);">Show details</summary>
+                        <pre style="background:var(--surface-2);padding:8px;border-radius:6px;font-size:11px;margin-top:4px;overflow-x:auto;white-space:pre-wrap;">{{ log.details | tojson(indent=2) }}</pre>
+                    </details>
+                    {% else %}—{% endif %}
+                </td>
+                <td style="font-size:12px;color:var(--text-muted);">{{ log.ip_address or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div id="auditEmpty" style="text-align:center;padding:64px 32px;color:var(--text-muted);">
+        <i data-lucide="shield" style="width:40px;height:40px;color:var(--text-faint);margin-bottom:16px;"></i>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px;">No matching audit entries</p>
+        <p style="font-size:13px;">Try adjusting your search or filters.</p>
+    </div>
+    {% endif %}
+    <div id="auditInfo" style="display:none;" class="pagination-info">Showing 0 entries</div>
+</div>
+
+<script>
+var auditLogs = [];
+document.querySelectorAll('#auditBody tr').forEach(function(row) {
+    auditLogs.push({
+        timestamp: row.dataset.timestamp || '',
+        admin: row.dataset.admin || '',
+        action: row.dataset.action || '',
+        target: row.dataset.target || '',
+        ip: row.dataset.ip || '',
+        html: row.outerHTML
+    });
+});
+
+var auditPage = 1, auditSort = {col:-1, dir:'asc'};
+
+function debounceAuditFilter() { clearTimeout(window._af2); window._af2 = setTimeout(applyAuditFilters, 250); }
+
+function applyAuditFilters() {
+    var search = document.getElementById('auditSearch').value.toLowerCase();
+    var action = document.getElementById('auditAction').value;
+    var filtered = auditLogs.filter(function(l) {
+        if (search && l.timestamp.toLowerCase().indexOf(search)===-1 && l.admin.toLowerCase().indexOf(search)===-1 && l.action.toLowerCase().indexOf(search)===-1 && l.target.toLowerCase().indexOf(search)===-1) return false;
+        if (action && l.action !== action) return false;
+        return true;
+    });
+    renderAuditTable(filtered);
+}
+
+function renderAuditTable(data) {
+    var tbody = document.getElementById('auditBody');
+    if (data.length === 0) {
+        tbody.innerHTML = '';
+        document.getElementById('auditEmpty').style.display = 'block';
+    } else {
+        document.getElementById('auditEmpty').style.display = 'none';
+        tbody.innerHTML = data.map(function(l){return l.html;}).join('');
+    }
+    document.getElementById('auditInfo').textContent = 'Showing ' + data.length + ' entries';
+    var hasFilters = document.getElementById('auditSearch').value || document.getElementById('auditAction').value;
+    document.getElementById('auditClear').style.display = hasFilters ? 'inline-flex' : 'none';
+    lucide.createIcons();
+}
+
+function clearAuditFilters() {
+    document.getElementById('auditSearch').value = '';
+    document.getElementById('auditAction').value = '';
+    renderAuditTable(auditLogs);
+}
+
+function exportAuditExcel() {
+    var search = document.getElementById('auditSearch').value;
+    var action = document.getElementById('auditAction').value;
+    window.location = '/admin/export-audit?search=' + encodeURIComponent(search) + '&action=' + encodeURIComponent(action);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Populate action filter dropdown
+    var actions = {};
+    auditLogs.forEach(function(l) { actions[l.action] = true; });
+    var sel = document.getElementById('auditAction');
+    Object.keys(actions).sort().forEach(function(a) {
+        var opt = document.createElement('option');
+        opt.value = a; opt.textContent = a;
+        sel.appendChild(opt);
+    });
+    if (auditLogs.length > 0) renderAuditTable(auditLogs);
+});
+</script>
+
+{% if logs.pages > 1 %}
+<div class="pagination">
+    <div class="pagination-info">Page {{ logs.page }} of {{ logs.pages }}</div>
+    <div style="display:flex;align-items:center;gap:8px;">
+        {% if logs.has_prev %}
+        <a href="?page={{ logs.prev_num }}" class="page-btn">‹</a>
+        {% endif %}
+        {% for p in logs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+            <a href="?page={{ p }}" class="page-btn {{ 'active' if p == logs.page }}">{{ p }}</a>
+            {% else %}
+            <span class="page-btn" disabled>…</span>
+            {% endif %}
+        {% endfor %}
+        {% if logs.has_next %}
+        <a href="?page={{ logs.next_num }}" class="page-btn">›</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

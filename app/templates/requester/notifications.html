@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Notifications - ACCIO{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;">
+    <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">Notifications</h1>
+    <p style="font-size:14px;color:var(--text-muted);margin-top:4px;">Stay updated on your tickets and approvals</p>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+    {% if notifications %}
+    <div style="padding:0;">
+        {% for n in notifications %}
+        <div class="notif-item" style="{% if not n.is_read %}background:var(--primary-light);{% endif %}border-bottom:1px solid var(--border);padding:16px 24px;cursor:pointer;" onclick="{% if n.link %}window.location='{{ n.link }}'{% endif %}">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+                <div style="margin-top:2px;">{% if not n.is_read %}<span class="notif-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--primary);"></span>{% endif %}</div>
+                <div style="flex:1;">
+                    <div class="notif-item-title" style="font-size:14px;font-weight:600;margin-bottom:4px;">{{ n.title }}</div>
+                    <div class="notif-item-msg" style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">{{ n.message }}</div>
+                    <div class="notif-item-time" style="font-size:11px;color:var(--text-faint);">{{ n.created_at.strftime('%d %b %Y at %H:%M') }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:64px 32px;color:var(--text-muted);">
+        <i data-lucide="bell" style="width:40px;height:40px;color:var(--text-faint);margin-bottom:16px;"></i>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px;">No notifications</p>
+        <p style="font-size:13px;">You'll see updates here when tickets are created, approved, or require your attention.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Approval Queue - ACCIO{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;">
+    <h1 style="font-size:22px;font-weight:700;color:var(--text)">
+        {% if queue_scope == 'AR' %}AR Approval Queue
+        {% elif queue_scope == 'GL' %}GL Approval Queue
+        {% else %}Approval Queue{% endif %}
+    </h1>
+    <p style="font-size:14px;color:var(--text-muted);margin-top:4px">Tickets awaiting your review and decision</p>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar" id="filterBar">
+    <div style="position:relative;flex:1;min-width:180px;">
+        <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-faint);pointer-events:none;"></i>
+        <input type="text" class="filter-input" id="searchInput" placeholder="Search tickets..." oninput="debounceFilter()" style="padding-left:36px;">
+    </div>
+    <select class="filter-select" id="statusFilter" onchange="applyFilters()">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Under Review">Under Review</option>
+        <option value="Approved">Approved</option>
+        <option value="Rejected">Rejected</option>
+        <option value="Needs Clarification">Needs Clarification</option>
+    </select>
+    <input type="date" class="filter-select" id="dateFrom" onchange="applyFilters()" style="min-width:140px;" title="From date">
+    <input type="date" class="filter-select" id="dateTo" onchange="applyFilters()" style="min-width:140px;" title="To date">
+    <button class="btn-secondary" id="clearFilters" onclick="clearFilters()" style="display:none;padding:6px 12px;font-size:13px;">
+        <i data-lucide="x" style="width:14px;height:14px;"></i> Clear
+    </button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+    <table id="ticketTable">
+        <thead>
+            <tr>
+                <th style="width:36px;cursor:default;">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" style="width:16px;height:16px;cursor:pointer;">
+                </th>
+                <th onclick="sortTable(1)" data-col="1">Ticket # <span class="sort-arrow"></span></th>
+                <th onclick="sortTable(2)" data-col="2">Raised By <span class="sort-arrow"></span></th>
+                <th onclick="sortTable(3)" data-col="3">Issue Type <span class="sort-arrow"></span></th>
+                <th onclick="sortTable(4)" data-col="4">Subject <span class="sort-arrow"></span></th>
+                <th onclick="sortTable(5)" data-col="5">Date <span class="sort-arrow"></span></th>
+                <th onclick="sortTable(6)" data-col="6">Status <span class="sort-arrow"></span></th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            {% for ticket in tickets %}
+            <tr data-ticket-id="{{ ticket.id }}" data-ticket-num="{{ ticket.ticket_number }}" data-creator="{{ ticket.creator.display_name|lower }}" data-issue="{{ ticket.issue_form.name|lower }}" data-subject="{{ ticket.subject|lower }}" data-date="{{ ticket.created_at.strftime('%Y-%m-%d') }}" data-status="{{ ticket.current_status }}">
+                <td style="cursor:default;" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="ticket-check" value="{{ ticket.id }}" onchange="updateBulkBar()" style="width:16px;height:16px;cursor:pointer;">
+                </td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'">
+                    <span class="ticket-num-wrapper">
+                        <span class="ticket-num">{{ ticket.ticket_number }}</span>
+                        <button class="copy-btn" onclick="event.stopPropagation();copyTicketNum(this,'{{ ticket.ticket_number }}')" title="Copy ticket number">
+                            <i data-lucide="copy" style="width:13px;height:13px"></i>
+                        </button>
+                    </span>
+                </td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'">{{ ticket.creator.display_name }}</td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ticket.issue_form.name }}</td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ticket.subject }}</td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'" style="color:var(--text-muted);font-size:13px;">{{ ticket.created_at.strftime('%d %b %Y') }}</td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'">
+                    {% set status = ticket.current_status %}
+                    {% if status == 'Pending' %}<span class="badge badge-yellow"><i data-lucide="clock" style="width:12px;height:12px;"></i> Pending</span>
+                    {% elif status == 'Under Review' %}<span class="badge badge-blue"><i data-lucide="search" style="width:12px;height:12px;"></i> Under Review</span>
+                    {% elif status == 'Approved' %}<span class="badge badge-green"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Approved</span>
+                    {% elif status == 'Rejected' %}<span class="badge badge-red"><i data-lucide="x-circle" style="width:12px;height:12px;"></i> Rejected</span>
+                    {% else %}<span class="badge badge-yellow">{{ status }}</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div id="emptyState" style="display:none;text-align:center;padding:64px 32px;color:var(--text-muted);">
+        <i data-lucide="inbox" style="width:40px;height:40px;margin:0 auto 16px;display:block;color:var(--text-faint);"></i>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px">No tickets found</p>
+        <p style="font-size:13px">Try adjusting your filters or search terms.</p>
+    </div>
+</div>
+
+<!-- Pagination -->
+<div class="pagination" id="pagination">
+    <div class="pagination-info" id="paginationInfo">Showing 0 of 0 tickets</div>
+    <div style="display:flex;align-items:center;">
+        <div class="pagination-controls" id="pageControls"></div>
+        <select class="page-size-select" id="pageSizeSelect" onchange="applyFilters()">
+            <option value="10">10 / page</option>
+            <option value="20" selected>20 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+        </select>
+    </div>
+</div>
+
+<!-- Bulk Action Bar -->
+<div class="bulk-bar" id="bulkActionBar">
+    <span id="bulkCount" style="font-size:14px;font-weight:500;">0 tickets selected</span>
+    <div style="display:flex;gap:10px;">
+        <button onclick="bulkAction('approve')" class="btn-primary">✅ Approve All</button>
+        <button onclick="openModal('Reject Selected Tickets', 'Provide a reason for rejection (applied to all selected).', '', 'Reject All');document.getElementById('modalForm').onsubmit=function(e){e.preventDefault();bulkAction('reject',document.getElementById('modalComment').value);closeModal();}" class="btn-danger">❌ Reject All</button>
+        <button onclick="clearBulkSelection()" class="btn-secondary">Cancel</button>
+    </div>
+</div>
+
+<script>
+var allTickets = [];
+document.querySelectorAll('#tableBody tr').forEach(function(row) {
+    allTickets.push({
+        id: row.dataset.ticketId,
+        num: row.dataset.ticketNum,
+        creator: row.dataset.creator,
+        issue: row.dataset.issue,
+        subject: row.dataset.subject,
+        date: row.dataset.date,
+        status: row.dataset.status,
+        html: row.outerHTML
+    });
+});
+
+var currentPage = 1, currentSort = {col:-1, dir:'asc'};
+
+function debounceFilter() { clearTimeout(window._df); window._df = setTimeout(applyFilters, 250); }
+
+function applyFilters() {
+    var search = document.getElementById('searchInput').value.toLowerCase();
+    var status = document.getElementById('statusFilter').value;
+    var from = document.getElementById('dateFrom').value;
+    var to = document.getElementById('dateTo').value;
+    var pageSize = parseInt(document.getElementById('pageSizeSelect').value);
+
+    var filtered = allTickets.filter(function(t) {
+        if (search && t.num.toLowerCase().indexOf(search) === -1 && t.creator.indexOf(search) === -1 && t.issue.indexOf(search) === -1 && t.subject.indexOf(search) === -1) return false;
+        if (status && t.status !== status) return false;
+        if (from && t.date < from) return false;
+        if (to && t.date > to) return false;
+        return true;
+    });
+
+    // Sort
+    if (currentSort.col >= 0) {
+        var keys = ['','num','creator','issue','subject','date','status'];
+        var key = keys[currentSort.col];
+        filtered.sort(function(a,b) {
+            var va = a[key], vb = b[key];
+            if (key === 'date') { va = a.date; vb = b.date; }
+            return currentSort.dir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+        });
+    }
+
+    renderTable(filtered, pageSize);
+}
+
+function renderTable(data, pageSize) {
+    var total = data.length;
+    var totalPages = Math.max(1, Math.ceil(total / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    var start = (currentPage - 1) * pageSize;
+    var end = Math.min(start + pageSize, total);
+    var pageData = data.slice(start, end);
+
+    var tbody = document.getElementById('tableBody');
+    if (pageData.length === 0) {
+        tbody.innerHTML = '';
+        document.getElementById('emptyState').style.display = 'block';
+    } else {
+        document.getElementById('emptyState').style.display = 'none';
+        tbody.innerHTML = pageData.map(function(t) { return t.html; }).join('');
+    }
+
+    document.getElementById('paginationInfo').textContent = 'Showing ' + (total > 0 ? (start+1) + '–' + end : '0') + ' of ' + total + ' tickets';
+
+    // Pagination controls
+    var controls = document.getElementById('pageControls');
+    controls.innerHTML = '';
+    controls.appendChild(createPageBtn('‹', currentPage > 1 ? function(){currentPage--;applyFilters();} : null));
+    var startPage = Math.max(1, currentPage - 2);
+    var endPage = Math.min(totalPages, currentPage + 2);
+    if (startPage > 1) { controls.appendChild(createPageBtn('1', function(){currentPage=1;applyFilters();})); if (startPage > 2) controls.appendChild(createPageBtn('...', null, true)); }
+    for (var i = startPage; i <= endPage; i++) controls.appendChild(createPageBtn(i, function(p){return function(){currentPage=p;applyFilters();}}(i), false, i === currentPage));
+    if (endPage < totalPages) { if (endPage < totalPages - 1) controls.appendChild(createPageBtn('...', null, true)); controls.appendChild(createPageBtn(totalPages, function(){currentPage=totalPages;applyFilters();})); }
+    controls.appendChild(createPageBtn('›', currentPage < totalPages ? function(){currentPage++;applyFilters();} : null));
+
+    // Update clear button
+    var hasFilters = document.getElementById('searchInput').value || document.getElementById('statusFilter').value || document.getElementById('dateFrom').value || document.getElementById('dateTo').value;
+    document.getElementById('clearFilters').style.display = hasFilters ? 'inline-flex' : 'none';
+
+    lucide.createIcons();
+}
+
+function createPageBtn(text, onClick, disabled, isActive) {
+    var btn = document.createElement('button');
+    btn.className = 'page-btn' + (isActive ? ' active' : '');
+    btn.textContent = text;
+    btn.disabled = !onClick;
+    if (onClick) btn.onclick = onClick;
+    return btn;
+}
+
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    currentPage = 1;
+    applyFilters();
+}
+
+function sortTable(col) {
+    if (currentSort.col === col) {
+        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+    } else { currentSort.col = col; currentSort.dir = 'asc'; }
+    document.querySelectorAll('thead th .sort-arrow').forEach(function(el) { el.textContent = ''; });
+    var arrow = document.querySelector('thead th[data-col="' + col + '"] .sort-arrow');
+    if (arrow) arrow.textContent = currentSort.dir === 'asc' ? '↑' : '↓';
+    applyFilters();
+}
+
+// Bulk actions
+function toggleSelectAll() {
+    var checked = document.getElementById('selectAll').checked;
+    document.querySelectorAll('.ticket-check').forEach(function(cb) { cb.checked = checked; });
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    var checked = document.querySelectorAll('.ticket-check:checked').length;
+    var bar = document.getElementById('bulkActionBar');
+    document.getElementById('bulkCount').textContent = checked + ' ticket(s) selected';
+    bar.style.display = checked > 0 ? 'flex' : 'none';
+    bar.style.animation = checked > 0 ? 'slide-up 200ms cubic-bezier(0.16,1,0.3,1)' : '';
+}
+
+function clearBulkSelection() {
+    document.querySelectorAll('.ticket-check').forEach(function(cb) { cb.checked = false; });
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('bulkActionBar').style.display = 'none';
+}
+
+function bulkAction(action, comment) {
+    var ids = [];
+    document.querySelectorAll('.ticket-check:checked').forEach(function(cb) { ids.push(parseInt(cb.value)); });
+    if (ids.length === 0) return;
+    fetch('/approver/bulk-action', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ticket_ids: ids, action: action, comment: comment || ''})
+    }).then(function(r){return r.json()}).then(function(data){
+        if (data.success) {
+            toast.success('', data.processed + ' ticket(s) ' + action + 'd successfully.');
+            setTimeout(function(){window.location.reload();}, 1500);
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    applyFilters();
+});
+</script>
+{% endblock %}

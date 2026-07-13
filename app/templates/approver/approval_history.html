@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Approval History - ACCIO{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+        <h1 style="font-size:22px;font-weight:700;color:var(--text)">Approval History</h1>
+        <p style="font-size:14px;color:var(--text-muted);margin-top:4px">Tickets you have reviewed and resolved</p>
+    </div>
+    <button class="btn-primary" onclick="exportApprovalExcel()" style="white-space:nowrap;">
+        <i data-lucide="download" style="width:16px;height:16px;"></i> Export to Excel
+    </button>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar" id="filterBar">
+    <div style="position:relative;flex:1;min-width:180px;">
+        <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-faint);pointer-events:none;"></i>
+        <input type="text" class="filter-input" id="searchInput" placeholder="Search tickets..." oninput="debounceFilter()" style="padding-left:36px;">
+    </div>
+    <select class="filter-select" id="statusFilter" onchange="applyFilters()">
+        <option value="">All Statuses</option>
+        <option value="Approved">Approved</option>
+        <option value="Rejected">Rejected</option>
+        <option value="Sent to Fulfilment">Sent to Fulfilment</option>
+    </select>
+    <select class="filter-select" id="scopeFilter" onchange="applyFilters()">
+        <option value="">All Scopes</option>
+        {% for s in active_scopes %}
+        <option value="{{ s.name }}">{{ s.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="date" class="filter-select" id="dateFrom" onchange="applyFilters()" style="min-width:140px;" title="From date">
+    <input type="date" class="filter-select" id="dateTo" onchange="applyFilters()" style="min-width:140px;" title="To date">
+    <button class="btn-secondary" id="clearFilters" onclick="clearFilters()" style="display:none;padding:6px 12px;font-size:13px;">
+        <i data-lucide="x" style="width:14px;height:14px;"></i> Clear
+    </button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+    <table id="ticketTable">
+        <thead>
+            <tr>
+                <th onclick="sortTable(0)" data-col="0">Ticket # <span class="sort-arrow"></span></th>
+                <th onclick="sortTable(1)" data-col="1">Raised By <span class="sort-arrow"></span></th>
+                <th onclick="sortTable(2)" data-col="2">Issue Type <span class="sort-arrow"></span></th>
+                <th onclick="sortTable(3)" data-col="3">Subject <span class="sort-arrow"></span></th>
+                <th onclick="sortTable(4)" data-col="4">Resolved Date <span class="sort-arrow"></span></th>
+                <th onclick="sortTable(5)" data-col="5">Scope <span class="sort-arrow"></span></th>
+                <th onclick="sortTable(6)" data-col="6">Status <span class="sort-arrow"></span></th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            {% for ticket in tickets %}
+            <tr data-ticket-num="{{ ticket.ticket_number|lower }}" data-creator="{{ ticket.creator.display_name|lower }}" data-issue="{{ ticket.issue_form.name|lower }}" data-subject="{{ ticket.subject|lower }}" data-date="{{ ticket.updated_at.strftime('%Y-%m-%d') }}" data-status="{{ ticket.current_status }}" data-scope="{{ ticket.scope or '' }}">
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'">
+                    <span class="ticket-num-wrapper">
+                        <span class="ticket-num">{{ ticket.ticket_number }}</span>
+                        <button class="copy-btn" onclick="event.stopPropagation();copyTicketNum(this,'{{ ticket.ticket_number }}')" title="Copy ticket number">
+                            <i data-lucide="copy" style="width:13px;height:13px"></i>
+                        </button>
+                    </span>
+                </td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'">{{ ticket.creator.display_name }}</td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ticket.issue_form.name }}</td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ticket.subject }}</td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'" style="color:var(--text-muted);font-size:13px;">{{ ticket.updated_at.strftime('%d %b %Y') }}</td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'" style="color:var(--text-muted);font-size:13px;">{% if ticket.scope %}<span class="badge" style="background:var(--primary-light);color:var(--primary);">{{ ticket.scope }}</span>{% else %}—{% endif %}</td>
+                <td onclick="window.location='{{ url_for('appr.ticket_detail', ticket_id=ticket.id) }}'">
+                    {% set status = ticket.current_status %}
+                    {% if status == 'Approved' %}<span class="badge badge-green"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Approved</span>
+                    {% elif status == 'Rejected' %}<span class="badge badge-red"><i data-lucide="x-circle" style="width:12px;height:12px;"></i> Rejected</span>
+                    {% elif status == 'Sent to Fulfilment' %}<span class="badge badge-green"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Sent to Fulfilment</span>
+                    {% else %}<span class="badge badge-yellow">{{ status }}</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div id="emptyState" style="display:none;text-align:center;padding:64px 32px;color:var(--text-muted);">
+        <i data-lucide="clock" style="width:40px;height:40px;margin:0 auto 16px;display:block;color:var(--text-faint);"></i>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px">No matching tickets</p>
+        <p style="font-size:13px">Try adjusting your search or filters.</p>
+    </div>
+</div>
+
+{% if tickets %}
+<!-- Pagination -->
+<div class="pagination" id="pagination">
+    <div class="pagination-info" id="paginationInfo">Showing 0 of 0 tickets</div>
+    <div style="display:flex;align-items:center;">
+        <div class="pagination-controls" id="pageControls"></div>
+        <select class="page-size-select" id="pageSizeSelect" onchange="applyFilters()">
+            <option value="10">10 / page</option>
+            <option value="20" selected>20 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+        </select>
+    </div>
+</div>
+{% endif %}
+
+<script>
+var allTickets = [];
+document.querySelectorAll('#tableBody tr').forEach(function(row) {
+    allTickets.push({
+        num: row.dataset.ticketNum,
+        creator: row.dataset.creator,
+        issue: row.dataset.issue,
+        subject: row.dataset.subject,
+        date: row.dataset.date,
+        status: row.dataset.status,
+        scope: row.dataset.scope || '',
+        html: row.outerHTML
+    });
+});
+
+var currentPage = 1, currentSort = {col:-1, dir:'asc'};
+
+function debounceFilter() { clearTimeout(window._df); window._df = setTimeout(applyFilters, 250); }
+
+function applyFilters() {
+    var search = document.getElementById('searchInput').value.toLowerCase();
+    var status = document.getElementById('statusFilter').value;
+    var scope = document.getElementById('scopeFilter').value;
+    var from = document.getElementById('dateFrom').value;
+    var to = document.getElementById('dateTo').value;
+    var pageSize = parseInt(document.getElementById('pageSizeSelect').value);
+
+    var filtered = allTickets.filter(function(t) {
+        if (search && t.num.indexOf(search) === -1 && t.creator.indexOf(search) === -1 && t.issue.indexOf(search) === -1 && t.subject.indexOf(search) === -1) return false;
+        if (status && t.status !== status) return false;
+        if (scope && t.scope !== scope) return false;
+        if (from && t.date < from) return false;
+        if (to && t.date > to) return false;
+        return true;
+    });
+
+    if (currentSort.col >= 0) {
+        var keys = ['num','creator','issue','subject','date','scope','status'];
+        var key = keys[currentSort.col];
+        filtered.sort(function(a,b) {
+            var va = a[key], vb = b[key];
+            return currentSort.dir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+        });
+    }
+
+    renderTable(filtered, pageSize);
+}
+
+function renderTable(data, pageSize) {
+    var total = data.length;
+    var totalPages = Math.max(1, Math.ceil(total / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    var start = (currentPage - 1) * pageSize;
+    var end = Math.min(start + pageSize, total);
+    var pageData = data.slice(start, end);
+
+    var tbody = document.getElementById('tableBody');
+    if (pageData.length === 0) {
+        tbody.innerHTML = '';
+        document.getElementById('emptyState').style.display = 'block';
+    } else {
+        document.getElementById('emptyState').style.display = 'none';
+        tbody.innerHTML = pageData.map(function(t) { return t.html; }).join('');
+    }
+
+    document.getElementById('paginationInfo').textContent = 'Showing ' + (total > 0 ? (start+1) + '–' + end : '0') + ' of ' + total + ' tickets';
+
+    var controls = document.getElementById('pageControls');
+    controls.innerHTML = '';
+    controls.appendChild(createPageBtn('‹', currentPage > 1 ? function(){currentPage--;applyFilters();} : null));
+    var startPage = Math.max(1, currentPage - 2);
+    var endPage = Math.min(totalPages, currentPage + 2);
+    if (startPage > 1) { controls.appendChild(createPageBtn('1', function(){currentPage=1;applyFilters();})); if (startPage > 2) controls.appendChild(createPageBtn('...', null, true)); }
+    for (var i = startPage; i <= endPage; i++) controls.appendChild(createPageBtn(i, function(p){return function(){currentPage=p;applyFilters();}}(i), false, i === currentPage));
+    if (endPage < totalPages) { if (endPage < totalPages - 1) controls.appendChild(createPageBtn('...', null, true)); controls.appendChild(createPageBtn(totalPages, function(){currentPage=totalPages;applyFilters();})); }
+    controls.appendChild(createPageBtn('›', currentPage < totalPages ? function(){currentPage++;applyFilters();} : null));
+
+    var hasFilters = document.getElementById('searchInput').value || document.getElementById('statusFilter').value || document.getElementById('scopeFilter').value || document.getElementById('dateFrom').value || document.getElementById('dateTo').value;
+    document.getElementById('clearFilters').style.display = hasFilters ? 'inline-flex' : 'none';
+
+    lucide.createIcons();
+}
+
+function createPageBtn(text, onClick, disabled, isActive) {
+    var btn = document.createElement('button');
+    btn.className = 'page-btn' + (isActive ? ' active' : '');
+    btn.textContent = text;
+    btn.disabled = !onClick;
+    if (onClick) btn.onclick = onClick;
+    return btn;
+}
+
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('scopeFilter').value = '';
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    currentPage = 1;
+    applyFilters();
+}
+
+function sortTable(col) {
+    if (currentSort.col === col) {
+        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+    } else { currentSort.col = col; currentSort.dir = 'asc'; }
+    document.querySelectorAll('thead th .sort-arrow').forEach(function(el) { el.textContent = ''; });
+    var arrow = document.querySelector('thead th[data-col="' + col + '"] .sort-arrow');
+    if (arrow) arrow.textContent = currentSort.dir === 'asc' ? '↑' : '↓';
+    applyFilters();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    applyFilters();
+});
+
+function exportApprovalExcel() {
+    var status = document.getElementById('statusFilter').value || '';
+    var scope = document.getElementById('scopeFilter').value || '';
+    var from = document.getElementById('dateFrom').value || '';
+    var to = document.getElementById('dateTo').value || '';
+    var url = '/approver/approval-history/export?status=' + encodeURIComponent(status) + '&scope=' + encodeURIComponent(scope) + '&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+    window.location = url;
+}
+</script>
+{% endblock %}

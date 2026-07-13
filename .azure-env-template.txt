@@ -1,0 +1,19 @@
+# Copy these into Azure App Service > Configuration > Application Settings
+# Fill in your actual values — never commit real secrets to source control
+
+SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_hex(32))">
+FLASK_ENV=production
+FLASK_DEBUG=false
+
+# Azure SQL Database (get from Azure Portal > SQL Database > Connection strings > ODBC)
+SQLALCHEMY_DATABASE_URI=mssql+pyodbc://<username>:<password>@<server>.database.windows.net/<dbname>?driver=ODBC+Driver+18+for+SQL+Server
+
+# Office365 SMTP Email
+MAIL_USERNAME=<your-office365-email@company.com>
+MAIL_PASSWORD=<your-office365-app-password>
+
+# Azure Blob Storage (get from Azure Portal > Storage Account > Access keys)
+AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=<name>;AccountKey=<key>;EndpointSuffix=core.windows.net
+AZURE_STORAGE_CONTAINER=accio-uploads
+
+# Azure App Service sets PORT automatically — do not set this manually

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Scopes - ACCIO Admin{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;display:flex;justify-content:space-between;align-items:flex-start;">
+  <div>
+    <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">Scopes</h1>
+    <p style="font-size:14px;color:var(--text-muted);margin-top:4px">Define scopes of work used to segment forms and user access</p>
+  </div>
+  <button class="btn-primary" onclick="openCreateScope()">
+    <i data-lucide="plus" style="width:16px;height:16px;"></i>
+    New Scope
+  </button>
+ </div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:60px;">ID</th>
+        <th>Name</th>
+        <th style="width:120px;">Status</th>
+        <th style="width:180px;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in scopes %}
+      <tr>
+        <td style="color:var(--text-muted);font-size:13px;">{{ s.id }}</td>
+        <td style="font-weight:500;">{{ s.name }}</td>
+        <td>
+          {% if s.is_active %}
+          <span class="badge badge-green">Active</span>
+          {% else %}
+          <span class="badge badge-red">Inactive</span>
+          {% endif %}
+        </td>
+        <td>
+          <form method="POST" action="{{ url_for('admin.toggle_scope', scope_id=s.id) }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-secondary" style="padding:6px 12px;font-size:12px;">
+              {% if s.is_active %}
+              <i data-lucide="pause" style="width:12px;height:12px;"></i> Deactivate
+              {% else %}
+              <i data-lucide="play" style="width:12px;height:12px;"></i> Activate
+              {% endif %}
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if scopes|length == 0 %}
+  <div style="text-align:center;padding:48px;color:var(--text-muted);">No scopes yet. Create your first scope.</div>
+  {% endif %}
+ </div>
+
+<!-- Create Scope Modal -->
+<div class="modal-overlay" id="createScopeModal">
+  <div class="modal" style="width:420px;">
+    <h3 class="modal-title">Create Scope</h3>
+    <p class="modal-desc">Add a new scope of work</p>
+    <form method="POST" action="{{ url_for('admin.create_scope') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="margin-bottom:16px;">
+        <label class="form-label" for="scope_name">Name</label>
+        <input class="form-input" id="scope_name" name="name" placeholder="e.g., AR, GL" required>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" class="btn-secondary" onclick="closeCreateScope()">Cancel</button>
+        <button type="submit" class="btn-primary">Create</button>
+      </div>
+    </form>
+  </div>
+ </div>
+
+<script>
+function openCreateScope(){
+  document.getElementById('scope_name').value='';
+  document.getElementById('createScopeModal').classList.add('active');
+}
+function closeCreateScope(){
+  document.getElementById('createScopeModal').classList.remove('active');
+}
+document.addEventListener('DOMContentLoaded', function(){ lucide.createIcons(); });
+</script>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Categories - ACCIO Admin{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;display:flex;justify-content:space-between;align-items:flex-start;">
+  <div>
+    <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">Categories</h1>
+    <p style="font-size:14px;color:var(--text-muted);margin-top:4px">Manage categories under each scope to organize issue forms</p>
+  </div>
+  <button class="btn-primary" onclick="openCreateCategory()">
+    <i data-lucide="plus" style="width:16px;height:16px;"></i>
+    New Category
+  </button>
+ </div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  {% for sc in scopes %}
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);background:var(--surface-2);display:flex;align-items:center;gap:10px;">
+      <i data-lucide="layers" style="width:16px;height:16px;color:var(--primary);"></i>
+      <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;">{{ sc.name }}</div>
+      {% if not sc.is_active %}<span class="badge badge-red">Scope Inactive</span>{% endif %}
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:60px;">ID</th>
+          <th>Category Name</th>
+          <th style="width:120px;">Scope</th>
+          <th style="width:120px;">Status</th>
+          <th style="width:180px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set items = categories | selectattr('scope_id', 'equalto', sc.id) | list %}
+        {% for c in items %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:13px;">{{ c.id }}</td>
+          <td style="font-weight:500;">{{ c.name }}</td>
+          <td><span class="badge" style="background:var(--primary-light);color:var(--primary);">{{ sc.name }}</span></td>
+          <td>
+            {% if c.is_active %}
+            <span class="badge badge-green">Active</span>
+            {% else %}
+            <span class="badge badge-red">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('admin.toggle_category', category_id=c.id) }}" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-secondary" style="padding:6px 12px;font-size:12px;">
+                {% if c.is_active %}
+                <i data-lucide="pause" style="width:12px;height:12px;"></i> Deactivate
+                {% else %}
+                <i data-lucide="play" style="width:12px;height:12px;"></i> Activate
+                {% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" style="text-align:center;color:var(--text-muted);font-size:13px;">No categories under this scope.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endfor %}
+  {% if scopes|length == 0 %}
+  <div style="text-align:center;padding:48px;color:var(--text-muted);">No scopes available. Create a scope first.</div>
+  {% endif %}
+</div>
+
+<!-- Create Category Modal -->
+<div class="modal-overlay" id="createCategoryModal">
+  <div class="modal" style="width:520px;">
+    <h3 class="modal-title">Create Category</h3>
+    <p class="modal-desc">Add a new category under a scope</p>
+    <form method="POST" action="{{ url_for('admin.create_category') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="margin-bottom:16px;">
+          <label class="form-label" for="cat_name">Name</label>
+          <input id="cat_name" name="name" class="form-input" placeholder="e.g., Payment, Reconciliation" required>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label class="form-label" for="cat_scope">Scope</label>
+          <select id="cat_scope" name="scope_id" class="form-input" required>
+            <option value="">Select scope...</option>
+            {% for s in active_scopes %}
+            <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" class="btn-secondary" onclick="closeCreateCategory()">Cancel</button>
+        <button type="submit" class="btn-primary">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openCreateCategory(){
+  document.getElementById('cat_name').value='';
+  var sel = document.getElementById('cat_scope');
+  if (sel) sel.value='';
+  document.getElementById('createCategoryModal').classList.add('active');
+}
+function closeCreateCategory(){
+  document.getElementById('createCategoryModal').classList.remove('active');
+}
+document.addEventListener('DOMContentLoaded', function(){ lucide.createIcons(); });
+</script>
+{% endblock %}

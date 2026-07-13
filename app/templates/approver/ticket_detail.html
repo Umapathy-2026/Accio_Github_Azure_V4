@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Review {{ ticket.ticket_number }} - ACCIO{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;">
+    <a href="{{ url_for('appr.queue') }}" style="font-size:13px;color:var(--text-muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-bottom:12px;">
+        <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Back to Queue
+    </a>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">
+            <span class="ticket-num-wrapper">
+                <span class="ticket-num" style="font-size:22px;">{{ ticket.ticket_number }}</span>
+                <button class="copy-btn" onclick="copyTicketNum(this,'{{ ticket.ticket_number }}')" title="Copy ticket number">
+                    <i data-lucide="copy" style="width:14px;height:14px;"></i>
+                </button>
+            </span>
+        </h1>
+        {% set status = ticket.current_status %}
+        {% if status == 'Pending' %}<span class="badge badge-yellow"><i data-lucide="clock" style="width:12px;height:12px;"></i> Pending</span>
+        {% elif status == 'Under Review' %}<span class="badge badge-blue"><i data-lucide="search" style="width:12px;height:12px;"></i> Under Review</span>
+        {% elif status == 'Approved' %}<span class="badge badge-green"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Approved</span>
+        {% elif status == 'Rejected' %}<span class="badge badge-red"><i data-lucide="x-circle" style="width:12px;height:12px;"></i> Rejected</span>
+        {% elif status == 'Needs Clarification' %}<span class="badge badge-orange"><i data-lucide="message-square" style="width:12px;height:12px;"></i> Needs Clarification</span>
+        {% elif status == 'Sent to Fulfilment' %}<span class="badge badge-green"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Sent to Fulfilment</span>
+        {% else %}<span class="badge badge-yellow">{{ status }}</span>{% endif %}
+        <!-- Reassign button -->
+        <button class="btn-secondary" style="padding:4px 12px;font-size:12px;" onclick="openReassignModal()">
+            <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Reassign
+        </button>
+    </div>
+    <p style="font-size:14px;color:var(--text-muted);margin-top:8px;">{{ ticket.issue_form.name }} &middot; Raised by {{ ticket.creator.display_name }} &middot; {{ ticket.created_at.strftime('%d %b %Y at %H:%M') }}</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+    <!-- Left Column -->
+    <div>
+        <div class="card" style="margin-bottom:24px;">
+            <h2 style="font-size:16px;font-weight:600;margin:0 0 20px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+                <i data-lucide="info" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
+                Ticket Information
+            </h2>
+            <div style="display:grid;gap:12px;">
+                <div><span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Subject</span><p style="font-size:14px;font-weight:500;margin:4px 0 0;">{{ ticket.subject }}</p></div>
+                {% if ticket.description %}<div><span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Description</span><p style="font-size:14px;margin:4px 0 0;white-space:pre-wrap;">{{ ticket.description }}</p></div>{% endif %}
+                <div><span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Issue Type</span><p style="font-size:14px;margin:4px 0 0;font-weight:500;">{{ ticket.issue_form.name }}</p></div>
+                <div><span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Raised By</span><p style="font-size:14px;margin:4px 0 0;">{{ ticket.creator.display_name }} ({{ ticket.creator.email }})</p></div>
+                {% if ticket.attachment_name %}<div><span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Attachment</span><p style="font-size:14px;margin:4px 0 0;"><i data-lucide="paperclip" style="width:14px;height:14px;vertical-align:middle;"></i> {{ ticket.attachment_name }}</p></div>{% endif %}
+                <div><span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Assigned To</span><p style="font-size:14px;margin:4px 0 0;">{{ ticket.assignee.display_name if ticket.assignee else 'Unassigned' }}</p></div>
+            </div>
+        </div>
+        <div class="card" style="margin-bottom:24px;">
+            <h2 style="font-size:16px;font-weight:600;margin:0 0 20px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+                <i data-lucide="database" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
+                Form Data
+            </h2>
+            <div style="display:grid;gap:12px;">
+                {% if ticket.payload %}
+                    {% for key, value in ticket.payload.items() %}
+                        {% if not key.startswith('__') %}
+                        <div><span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">{{ key|replace('_', ' ')|title }}</span><p style="font-size:14px;margin:4px 0 0;">{% if value is mapping and value.get('original_name') %}<i data-lucide="paperclip" style="width:14px;height:14px;vertical-align:middle;"></i> {{ value.original_name }}{% else %}{{ value }}{% endif %}</p></div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% if ticket.payload and ticket.payload.get('__clarification__') %}
+        <div class="card" style="border:1px solid #fed7aa;margin-bottom:24px;">
+            <h2 style="font-size:16px;font-weight:600;margin:0 0 16px;color:#9a3412;"><i data-lucide="message-square" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Clarification Response</h2>
+            <p style="font-size:14px;margin:0 0 8px;white-space:pre-wrap;">{{ ticket.payload.get('__clarification__') }}</p>
+        </div>
+        {% endif %}
+    </div>
+    <!-- Right Column: Timeline -->
+    <div>
+        <div class="card">
+            <h2 style="font-size:16px;font-weight:600;margin:0 0 20px;padding-bottom:12px;border-bottom:1px solid var(--border);"><i data-lucide="clock" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Activity Timeline</h2>
+            {% if logs %}
+            <div class="timeline">
+                {% for log in logs|reverse %}
+                <div class="timeline-item">
+                    <div class="timeline-dot" style="{% if log.action == 'Rejected' %}background:#dc2626;box-shadow:0 0 0 2px #dc2626;{% elif log.action == 'Approved' %}background:#16a34a;box-shadow:0 0 0 2px #16a34a;{% endif %}"></div>
+                    <div class="timeline-meta"><strong style="color:var(--text);">{{ log.action }}</strong> &middot; by {{ log.actor.display_name }} &middot; <span>{{ log.timestamp.strftime('%d %b %Y at %H:%M') }}</span></div>
+                    {% if log.comment %}<div class="timeline-content" style="background:var(--surface-2);border-radius:8px;padding:12px;margin-top:4px;">{{ log.comment }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if ticket.current_status in ['Pending', 'Under Review'] %}
+<!-- Action Bar -->
+<div style="position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:16px 32px;margin:-32px;margin-top:0;display:flex;gap:12px;justify-content:center;box-shadow:0 -4px 12px rgba(0,0,0,0.06);">
+    <button class="btn-primary" onclick="openModal('Approve Ticket', 'Confirm approval for {{ ticket.ticket_number }}. This will send the ticket to fulfilment.', '{{ url_for('appr.approve_ticket', ticket_id=ticket.id) }}', 'Approve')"><i data-lucide="check-circle" style="width:16px;height:16px;"></i> Approve</button>
+    <button class="btn-secondary" onclick="openModal('Send Back for Clarification', 'Request additional information from {{ ticket.creator.display_name }} regarding {{ ticket.ticket_number }}.', '{{ url_for('appr.send_back_ticket', ticket_id=ticket.id) }}', 'Send Back')"><i data-lucide="rotate-ccw" style="width:16px;height:16px;"></i> Send Back</button>
+    <button class="btn-danger" onclick="openModal('Reject Ticket', 'Reject {{ ticket.ticket_number }}. Please provide a reason for rejection.', '{{ url_for('appr.reject_ticket', ticket_id=ticket.id) }}', 'Reject')"><i data-lucide="x-circle" style="width:16px;height:16px;"></i> Reject</button>
+</div>
+{% endif %}
+
+<!-- Reassign Modal -->
+<div class="modal-overlay" id="reassignModal">
+    <div class="modal" style="width:480px;">
+        <h3 class="modal-title">Reassign Ticket</h3>
+        <p class="modal-desc">Select a new approver and provide a reason for reassignment.</p>
+        <form method="POST" action="{{ url_for('appr.reassign_ticket', ticket_id=ticket.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="margin-bottom:16px;">
+                <label class="form-label" for="new_assignee_id">New Approver <span style="color:#dc2626;">*</span></label>
+                <select id="new_assignee_id" name="new_assignee_id" class="form-input" required>
+                    <option value="">Select an approver...</option>
+                    {% for a in approvers %}
+                    <option value="{{ a.id }}">{{ a.display_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label class="form-label" for="reassign_comment">Reason for Reassignment <span style="color:#dc2626;">*</span></label>
+                <textarea id="reassign_comment" name="comment" class="form-input" rows="3" required></textarea>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('reassignModal').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn-primary" onclick="submitWithSpinner(this)">Confirm Reassignment</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openReassignModal() {
+    document.getElementById('reassignModal').classList.add('active');
+}
+</script>
+{% endblock %}

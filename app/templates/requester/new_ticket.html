@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Create Request - ACCIO{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;">
+    <h1 style="font-size:22px;font-weight:700;color:var(--text)">Create Request</h1>
+    <p style="font-size:14px;color:var(--text-muted);margin-top:4px">Submit a new issue or request for processing</p>
+  </div>
+
+<div class="card" style="max-width:900px;">
+  <form method="POST" enctype="multipart/form-data" id="newTicketForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" id="selected_scope_id" value="">
+
+    <!-- Step 1: Scope selection -->
+    {% set scopes_list = user_scopes or [] %}
+    {% if scopes_list|length <= 1 %}
+      {% set auto_scope = scopes_list[0] if scopes_list else None %}
+      <div style="margin-bottom:20px;">
+        <label class="form-label">Scope</label>
+        {% if auto_scope %}
+          <input type="hidden" id="scope_id" value="{{ auto_scope.id }}">
+          <div><span class="badge" style="background:var(--primary-light);color:var(--primary);">{{ auto_scope.name }}</span></div>
+        {% else %}
+          <div style="color:var(--text-muted);font-size:14px;">No active scopes available. Please contact admin.</div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div style="margin-bottom:20px;">
+        <label class="form-label">Select Scope <span style="color:#dc2626;">*</span></label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          {% for us in scopes_list %}
+            <button type="button" class="btn-secondary" data-scope-id="{{ us.id }}" data-scope-name="{{ us.name }}" onclick="onScopeSelect(this)">{{ us.name }}</button>
+          {% endfor %}
+        </div>
+        <input type="hidden" id="scope_id" required>
+      </div>
+    {% endif %}
+
+    <!-- Step 2: Category selection (searchable) -->
+    <div id="catStep" style="margin-bottom:20px;display:none;">
+      <label class="form-label" for="category_id">Category</label>
+      <select id="category_id" class="form-input" placeholder="Select a category..."></select>
+    </div>
+
+    <!-- Step 3: Form selection (searchable) -->
+    <div id="formStep" style="margin-bottom:20px;display:none;">
+      <label class="form-label" for="form_id">Request Type <span style="color:#dc2626;">*</span></label>
+      <select id="form_id" name="form_id" class="form-input" required placeholder="Select a request type..."></select>
+    </div>
+
+    <!-- Dynamic fields -->
+    <div id="dynamic-fields">
+      <div style="text-align:center;padding:32px;color:var(--text-muted);">
+        <i data-lucide="file-text" style="width:28px;height:28px;color:var(--text-faint);margin-bottom:8px;"></i>
+        <p style="font-size:14px;margin:0;">Select a scope, then a category/request type to see form fields</p>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:20px;">
+      <a href="{{ url_for('req.dashboard') }}" class="btn-secondary">Cancel</a>
+      <button type="submit" class="btn-primary" onclick="submitWithSpinner(this)">
+        <i data-lucide="send" style="width:16px;height:16px;"></i>
+        Submit Request
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  var tomCat, tomForm;
+
+  function initTomSelect(id, placeholder) {
+    if (window[id]) { try { window[id].destroy(); } catch(e){} }
+    var el = document.getElementById(id);
+    if (!el) return null;
+    return new TomSelect(el, { create:false, allowEmptyOption:true, placeholder: placeholder || '', persist:false, maxItems:1, searchField:['text'] });
+  }
+
+  function onScopeSelect(btn) {
+    var scopeId = btn.getAttribute('data-scope-id');
+    var name = btn.getAttribute('data-scope-name');
+    document.getElementById('scope_id').value = scopeId;
+    document.getElementById('selected_scope_id').value = scopeId;
+    // Visual selection
+    document.querySelectorAll('[data-scope-id]').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    loadCategories(scopeId);
+  }
+
+  function loadCategories(scopeId) {
+    var catStep = document.getElementById('catStep');
+    var formStep = document.getElementById('formStep');
+    var catSel = document.getElementById('category_id');
+    var formSel = document.getElementById('form_id');
+    if (!scopeId) { catStep.style.display='none'; formStep.style.display='none'; return; }
+    catStep.style.display = 'block';
+    formStep.style.display = 'none';
+    document.getElementById('dynamic-fields').innerHTML = '<p style="color:var(--text-muted);font-size:14px;padding:16px 0;">Loading categories...</p>';
+
+    // Reset selects
+    catSel.innerHTML = '';
+    formSel.innerHTML = '';
+    if (tomCat) { try { tomCat.destroy(); } catch(e){} }
+    if (tomForm) { try { tomForm.destroy(); } catch(e){} }
+
+    fetch('/requester/api/categories?scope_id=' + encodeURIComponent(scopeId))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var hasCategories = data.categories && data.categories.length;
+        if (!hasCategories) {
+          // No categories: go straight to forms for un-categorized
+          catStep.style.display = 'none';
+          loadForms(scopeId, null);
+          return;
+        }
+        var opts = '<option value="">Select a category...</option>' + data.categories.map(function(c){ return '<option value="'+c.id+'">'+c.name+'</option>'; }).join('');
+        catSel.innerHTML = opts;
+        tomCat = initTomSelect('category_id', 'Select a category...');
+        catSel.tomselect.on('change', function(val){ loadForms(scopeId, val || null); });
+        document.getElementById('dynamic-fields').innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);">Select a category to continue...</div>';
+      })
+      .catch(function(){ document.getElementById('dynamic-fields').innerHTML = '<p style="color:#dc2626;font-size:14px;">Failed to load categories.</p>'; });
+  }
+
+  function loadForms(scopeId, categoryId) {
+    var formStep = document.getElementById('formStep');
+    var formSel = document.getElementById('form_id');
+    formStep.style.display = 'block';
+    document.getElementById('dynamic-fields').innerHTML = '<p style="color:var(--text-muted);font-size:14px;padding:16px 0;">Loading request types...</p>';
+    formSel.innerHTML = '';
+    if (tomForm) { try { tomForm.destroy(); } catch(e){} }
+
+    var url = '/requester/api/forms?scope_id=' + encodeURIComponent(scopeId);
+    if (categoryId) url += '&category_id=' + encodeURIComponent(categoryId);
+    fetch(url)
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var forms = data.forms || [];
+        var opts = '<option value="">Select a request type...</option>' + forms.map(function(f){ return '<option value="'+f.id+'">'+f.name+'</option>'; }).join('');
+        formSel.innerHTML = opts;
+        tomForm = initTomSelect('form_id', 'Select a request type...');
+        formSel.tomselect.on('change', function(val){ loadFormFields(val); });
+        if (!forms.length) {
+          document.getElementById('dynamic-fields').innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);">No request types available.</div>';
+        }
+      })
+      .catch(function(){ document.getElementById('dynamic-fields').innerHTML = '<p style="color:#dc2626;font-size:14px;">Failed to load request types.</p>'; });
+  }
+
+  function loadFormFields(formId) {
+    var container = document.getElementById('dynamic-fields');
+    if (!formId) {
+      container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);"><i data-lucide="file-text" style="width:28px;height:28px;color:var(--text-faint);margin-bottom:8px;"></i><p style="font-size:14px;margin:0;">Select a request type to see form fields</p></div>';
+      lucide.createIcons();
+      return;
+    }
+    container.innerHTML = '<p style="color:var(--text-muted);font-size:14px;padding:16px 0;">Loading fields...</p>';
+    fetch('/api/form-fields/' + formId)
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var html = '';
+        (data.fields || []).forEach(function(field){
+          var required = field.required ? ' <span style="color:#dc2626;">*</span>' : '';
+          html += '<div style="margin-bottom:20px;">';
+          html += '<label class="form-label" for="field-' + field.name + '">' + field.label + required + '</label>';
+          if (field.type === 'text' || field.type === 'email') {
+            html += '<input type="' + field.type + '" id="field-' + field.name + '" name="' + field.name + '" class="form-input" placeholder="' + field.label + '"' + (field.required ? ' required' : '') + '>';
+          } else if (field.type === 'number') {
+            html += '<input type="number" id="field-' + field.name + '" name="' + field.name + '" class="form-input" placeholder="0.00" step="0.01"' + (field.required ? ' required' : '') + '>';
+          } else if (field.type === 'date') {
+            html += '<input type="date" id="field-' + field.name + '" name="' + field.name + '" class="form-input"' + (field.required ? ' required' : '') + '>';
+          } else if (field.type === 'dropdown') {
+            html += '<select id="field-' + field.name + '" name="' + field.name + '" class="form-input"' + (field.required ? ' required' : '') + '>';
+            html += '<option value="">Select ' + field.label + '...</option>';
+            if (field.options) { field.options.forEach(function(opt){ html += '<option value="' + opt + '">' + opt + '</option>'; }); }
+            html += '</select>';
+          } else if (field.type === 'file') {
+            html += '<div class="file-upload" onclick="document.getElementById(\'file-' + field.name + '\').click()">';
+            html += '<i data-lucide="paperclip" style="width:16px;height:16px;color:var(--text-muted);margin-bottom:4px;"></i>';
+            html += '<p style="font-size:13px;color:var(--text-muted);margin:0;"><span id="file-name-' + field.name + '" style="color:var(--text-faint);">Click to upload</span></p>';
+            html += '</div>';
+            html += '<input type="file" id="file-' + field.name + '" name="' + field.name + '" style="display:none;" onchange="document.getElementById(\'file-name-' + field.name + '\').textContent=this.files&&this.files[0]?this.files[0].name:\'Click to upload\';document.getElementById(\'file-name-' + field.name + '\').style.color=this.files&&this.files[0]?\'var(--text)\':\'var(--text-faint)\'">';
+          } else if (field.type === 'textarea') {
+            html += '<textarea id="field-' + field.name + '" name="' + field.name + '" class="form-input" placeholder="' + field.label + '" rows="4"' + (field.required ? ' required' : '') + '></textarea>';
+          } else {
+            html += '<input type="text" id="field-' + field.name + '" name="' + field.name + '" class="form-input" placeholder="' + field.label + '"' + (field.required ? ' required' : '') + '>';
+          }
+          html += '</div>';
+        });
+        container.innerHTML = html || '<div style="text-align:center;padding:16px;color:var(--text-muted);">No fields to display.</div>';
+        lucide.createIcons();
+      })
+      .catch(function(){ container.innerHTML = '<p style="color:#dc2626;font-size:14px;">Error loading fields. Please try again.</p>'; });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    // If auto-scope exists, initialize flow
+    var autoScope = document.getElementById('scope_id');
+    if (autoScope && autoScope.value) { loadCategories(autoScope.value); }
+    lucide.createIcons();
+  });
+</script>
+{% endblock %}

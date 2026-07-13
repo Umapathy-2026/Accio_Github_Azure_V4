@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+{% block title %}User Management - ACCIO{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;">
+    <div>
+        <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">Users</h1>
+        <p style="font-size:14px;color:var(--text-muted);margin-top:4px">Manage system users and their roles</p>
+    </div>
+    <button class="btn-primary" onclick="document.getElementById('createUserModal').classList.add('active')">
+        <i data-lucide="plus" style="width:16px;height:16px;"></i>
+        Add User Manually
+    </button>
+</div>
+
+<div class="filter-bar">
+    <div style="position:relative;flex:1;min-width:180px;">
+        <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-faint);pointer-events:none;"></i>
+        <input type="text" class="filter-input" id="userSearch" placeholder="Search by name or email..." oninput="filterUsers()" style="padding-left:36px;">
+    </div>
+    <select class="filter-select" id="userRoleFilter" onchange="filterUsers()">
+        <option value="">All Roles</option>
+        <option value="admin">Admin</option>
+        <option value="approver">Approver</option>
+        <option value="user">User</option>
+    </select>
+    <select class="filter-select" id="userStatusFilter" onchange="filterUsers()">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+    </select>
+    <button class="btn-secondary" id="userClear" onclick="clearUserFilters()" style="display:none;padding:6px 12px;font-size:13px;">
+        <i data-lucide="x" style="width:14px;height:14px;"></i> Clear
+    </button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+    {% if users %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Scopes</th>
+                <th>Assigned Approver</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="userTableBody">
+            {% for user in users %}
+            <tr data-user-id="{{ user.id }}" data-name="{{ user.display_name|lower }}" data-email="{{ user.email|lower }}" data-role="{{ user.role }}" data-status="{{ 'active' if user.is_active else 'inactive' }}" data-scopes='{{ (user.scopes.all() | map(attribute="id") | list) | tojson }}'>
+                <td style="font-weight:500;">{{ user.display_name }}
+                    {% if not user.approver_id and not user.scopes.count() %}
+                      <span class="badge badge-yellow"
+                            style="margin-left:8px;font-size:11px;"
+                            title="This user has no approver or scope assigned.">
+                        Needs Setup
+                      </span>
+                    {% endif %}
+                </td>
+                <td style="color:var(--text-muted);">{{ user.email }}</td>
+                <td><span class="role-badge" style="text-transform:capitalize;font-size:12px;">{{ user.role }}</span></td>
+                <td style="color:var(--text-muted);font-size:13px;">
+                    {%- set user_scopes = user.scopes.all() -%}
+                    {%- if user_scopes -%}
+                        {%- for s in user_scopes -%}
+                            <span class="badge" style="background:var(--primary-light);color:var(--primary);">{{ s.name }}</span>{% if not loop.last %} {% endif %}
+                        {%- endfor -%}
+                    {%- else -%}
+                        —
+                    {%- endif -%}
+                </td>
+                <td style="color:var(--text-muted);font-size:13px;">{{ user.approver.display_name if user.approver else '—' }}</td>
+                <td>
+                    {% if user.is_active %}
+                    <span class="badge badge-green">Active</span>
+                    {% else %}
+                    <span class="badge badge-red">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <button class="btn-secondary" style="padding:4px 8px;font-size:11px;" onclick='openEditModal({{ user.id }}, {{ user.display_name|tojson }}, {{ user.email|tojson }}, {{ user.role|tojson }}, {{ user.approver_id if user.approver_id else "null" }}, {{ "true" if user.is_active else "false" }})'>
+                            <i data-lucide="edit" style="width:11px;height:11px;"></i>
+                            Edit
+                        </button>
+                        {% if user.locked_until and user.locked_until > now %}
+                        <form method="POST" action="{{ url_for('admin.unlock_user', user_id=user.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-secondary" style="padding:4px 8px;font-size:11px;background:#fef3c7;border-color:#fbbf24;">
+                                <i data-lucide="unlock" style="width:11px;height:11px;"></i>
+                                Unlock
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% if user.is_active and user.role != 'admin' %}
+                        <button class="btn-danger" style="padding:4px 8px;font-size:11px;" onclick='deactivateUser({{ user.id }}, {{ user.display_name|tojson }})'>
+                            <i data-lucide="user-x" style="width:11px;height:11px;"></i>
+                            Deactivate
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div id="userEmpty" style="display:none;text-align:center;padding:64px 32px;color:var(--text-muted);">
+        <i data-lucide="users" style="width:40px;height:40px;color:var(--text-faint);margin-bottom:16px;"></i>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px;">No users yet</p>
+        <p style="font-size:13px;">Create your first user to get started.</p>
+    </div>
+    {% endif %}
+    <div id="userEmptyFiltered" style="display:none;text-align:center;padding:64px 32px;color:var(--text-muted);">
+        <i data-lucide="search-x" style="width:40px;height:40px;color:var(--text-faint);margin-bottom:16px;"></i>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px;">No matching users</p>
+        <p style="font-size:13px;">Try adjusting your search or filters.</p>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div class="modal-overlay" id="createUserModal">
+    <div class="modal" style="width:520px;">
+        <h3 class="modal-title">Add User Manually</h3>
+        <p class="modal-desc" style="color:#fbbf24;background:rgba(245,158,11,0.15);
+           border-radius:6px;padding:8px 12px;font-size:13px;">
+          ⚠ Users who sign in with Microsoft are added automatically on
+          their first login. Use this only to pre-configure an account
+          before their first login, or when not using Microsoft SSO.
+        </p>
+        <form method="POST" action="{{ url_for('admin.users') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div style="margin-bottom:16px;">
+                    <label class="form-label" for="display_name">Full Name <span style="color:#dc2626;">*</span></label>
+                    <input type="text" id="display_name" name="display_name" class="form-input" required>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label class="form-label" for="email">Email <span style="color:#dc2626;">*</span></label>
+                    <input type="email" id="email" name="email" class="form-input" required>
+                </div>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label class="form-label" for="password">Password <span style="color:#dc2626;">*</span></label>
+                <input type="password" id="password" name="password" class="form-input" required>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+                <div style="margin-bottom:16px;">
+                    <label class="form-label" for="role">Role</label>
+                    <select id="role" name="role" class="form-input">
+                        <option value="user">User</option>
+                        <option value="approver">Approver</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label class="form-label" for="approver_id">Assigned Approver</label>
+                    <select id="approver_id" name="approver_id" class="form-input">
+                        <option value="">None</option>
+                        {% for approver in approvers %}
+                        <option value="{{ approver.id }}">{{ approver.display_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label class="form-label">Scope Access</label>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    {% for s in scopes %}
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;border:1px solid var(--border);padding:6px 10px;border-radius:8px;background:var(--surface-2);">
+                        <input type="checkbox" name="scope_ids" value="{{ s.id }}"> {{ s.name }}
+                    </label>
+                    {% endfor %}
+                    {% if scopes|length == 0 %}
+                    <div style="font-size:13px;color:var(--text-muted);">No active scopes available. Create a scope first.</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('createUserModal').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn-primary">Add User Manually</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal-overlay" id="editUserModal">
+    <div class="modal" style="width:520px;">
+        <h3 class="modal-title">Edit User</h3>
+        <p class="modal-desc">Update user details and permissions</p>
+        <form method="POST" id="editUserForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="margin-bottom:16px;">
+                <label class="form-label" for="edit_name">Full Name</label>
+                <input type="text" id="edit_name" name="display_name" class="form-input">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+                <div style="margin-bottom:16px;">
+                    <label class="form-label" for="edit_role">Role</label>
+                    <select id="edit_role" name="role" class="form-input">
+                        <option value="user">User</option>
+                        <option value="approver">Approver</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label class="form-label" for="edit_approver">Assigned Approver</label>
+                    <select id="edit_approver" name="approver_id" class="form-input">
+                        <option value="">None</option>
+                        {% for approver in approvers %}
+                        <option value="{{ approver.id }}">{{ approver.display_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label class="form-label">Scope Access</label>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    {% for s in scopes %}
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;border:1px solid var(--border);padding:6px 10px;border-radius:8px;background:var(--surface-2);">
+                        <input type="checkbox" id="edit_scope_{{ s.id }}" name="scope_ids" value="{{ s.id }}"> {{ s.name }}
+                    </label>
+                    {% endfor %}
+                    {% if scopes|length == 0 %}
+                    <div style="font-size:13px;color:var(--text-muted);">No active scopes available. Create a scope first.</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label class="form-label" for="edit_password">New Password (leave blank to keep current)</label>
+                <input type="password" id="edit_password" name="password" class="form-input" placeholder="Enter new password">
+            </div>
+            <div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" id="edit_active" name="is_active" style="width:16px;height:16px;">
+                <label for="edit_active" style="font-size:14px;">User is active</label>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('editUserModal').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Deactivation Interstitial Modal -->
+<div class="modal-overlay" id="deactivateModal">
+    <div class="modal" style="width:480px;">
+        <h3 class="modal-title" id="deactivateTitle">Deactivate User</h3>
+        <p id="deactivateDesc" class="modal-desc"></p>
+        <form method="POST" id="deactivateForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div id="reassignUsersSection" style="margin-bottom:16px;display:none;">
+                <div class="badge" style="background:rgba(249,115,22,0.15);color:#fb923c;margin-bottom:6px;">Approver has subordinates</div>
+                <div style="font-size:13px;color:var(--text);margin-bottom:6px;" id="subordinatesNote"></div>
+                <label class="form-label" for="reassign_users_to">Reassign all users to:</label>
+                <select id="reassign_users_to" name="reassign_users_to" class="form-input"></select>
+            </div>
+            <div id="reassignCreatedSection" style="margin-bottom:16px;display:none;">
+                <label class="form-label" for="reassign_to">Reassign tickets created by this user to</label>
+                <select id="reassign_to" name="reassign_to" class="form-input"></select>
+            </div>
+            <div id="reassignAssignedSection" style="margin-bottom:16px;display:none;">
+                <label class="form-label" for="reassign_assigned_to">Reassign tickets currently assigned to this user to</label>
+                <select id="reassign_assigned_to" name="reassign_assigned_to" class="form-input"></select>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('deactivateModal').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn-danger">Deactivate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEditModal(id, name, email, role, approverId, isActive) {
+    document.getElementById('editUserForm').action = '/admin/users/' + id + '/edit';
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_role').value = role;
+    document.getElementById('edit_approver').value = approverId || '';
+    document.getElementById('edit_active').checked = isActive;
+    document.getElementById('edit_password').value = '';
+    // Pre-check scope access based on row data-scopes
+    try {
+        var row = document.querySelector('tr[data-user-id="' + id + '"]');
+        var scopeIds = [];
+        if (row && row.dataset.scopes) { scopeIds = JSON.parse(row.dataset.scopes || '[]'); }
+        var checks = document.querySelectorAll('input[id^="edit_scope_"]');
+        checks.forEach(function(cb){ cb.checked = scopeIds.indexOf(parseInt(cb.value)) !== -1; });
+    } catch (e) { /* ignore */ }
+    document.getElementById('editUserModal').classList.add('active');
+}
+
+function deactivateUser(userId, displayName) {
+    fetch('/admin/users/' + userId + '/deactivate-check')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var modal = document.getElementById('deactivateModal');
+            document.getElementById('deactivateTitle').textContent = 'Deactivate ' + displayName;
+            var hasDeps = !!data.has_dependencies;
+            var desc = 'Are you sure you want to deactivate ' + displayName + '?';
+            var anyTickets = (data.open_ticket_count || 0) > 0;
+            // Subordinate section for approvers
+            var usersSec = document.getElementById('reassignUsersSection');
+            var usersSel = document.getElementById('reassign_users_to');
+            var createdSec = document.getElementById('reassignCreatedSection');
+            var createdSel = document.getElementById('reassign_to');
+            var assignedSec = document.getElementById('reassignAssignedSection');
+            var assignedSel = document.getElementById('reassign_assigned_to');
+
+            // Reset sections
+            usersSec.style.display = 'none';
+            createdSec.style.display = 'none';
+            assignedSec.style.display = 'none';
+            usersSel.innerHTML = '';
+            createdSel.innerHTML = '';
+            assignedSel.innerHTML = '';
+
+            if (data.role === 'approver' && (data.subordinates_count || 0) > 0) {
+                document.getElementById('subordinatesNote').innerHTML = 'This approver has <strong>' + data.subordinates_count + '</strong> users assigned to them. You must reassign these users to a new approver before deactivating.';
+                usersSec.style.display = 'block';
+                usersSel.innerHTML = '<option value="">Select approver...</option>';
+                data.approvers.forEach(function(a){ usersSel.innerHTML += '<option value="' + a.id + '">' + a.name + '</option>'; });
+                desc = 'Please review dependencies before deactivation.';
+            }
+            if ((data.created_count || 0) > 0) {
+                createdSec.style.display = 'block';
+                createdSel.innerHTML = '<option value="">Select approver...</option>';
+                data.approvers.forEach(function(a){ createdSel.innerHTML += '<option value="' + a.id + '">' + a.name + '</option>'; });
+                desc = 'This user has ' + data.open_ticket_count + ' open tickets. Reassignment required before deactivation.';
+            }
+            if ((data.assigned_count || 0) > 0) {
+                assignedSec.style.display = 'block';
+                assignedSel.innerHTML = '<option value="">Select approver...</option>';
+                data.approvers.forEach(function(a){ assignedSel.innerHTML += '<option value="' + a.id + '">' + a.name + '</option>'; });
+                desc = 'This user has ' + data.open_ticket_count + ' open tickets. Reassignment required before deactivation.';
+            }
+
+            document.getElementById('deactivateDesc').innerHTML = desc;
+            document.getElementById('deactivateForm').action = '/admin/users/' + userId + '/deactivate';
+            modal.classList.add('active');
+        });
+}
+
+function filterUsers() {
+    var search = document.getElementById('userSearch').value.toLowerCase();
+    var role = document.getElementById('userRoleFilter').value;
+    var status = document.getElementById('userStatusFilter').value;
+    var tableBody = document.getElementById('userTableBody');
+    var hasUsers = tableBody && tableBody.querySelectorAll('tr').length > 0;
+    document.getElementById('userEmpty').style.display = hasUsers ? 'none' : 'block';
+    if (!hasUsers) {
+        document.getElementById('userEmptyFiltered').style.display = 'none';
+        document.getElementById('userClear').style.display = 'none';
+        return;
+    }
+    var rows = tableBody.querySelectorAll('tr');
+    var visible = 0;
+    rows.forEach(function(row) {
+        var name = row.dataset.name || '';
+        var email = row.dataset.email || '';
+        var userRole = row.dataset.role || '';
+        var userStatus = row.dataset.status || '';
+        var match = true;
+        if (search && name.indexOf(search)===-1 && email.indexOf(search)===-1) match = false;
+        if (role && userRole !== role) match = false;
+        if (status && userStatus !== status) match = false;
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    document.getElementById('userEmpty').style.display = 'none';
+    document.getElementById('userEmptyFiltered').style.display = visible === 0 ? 'block' : 'none';
+    document.getElementById('userClear').style.display = (search || role || status) ? 'inline-flex' : 'none';
+}
+
+function clearUserFilters() {
+    document.getElementById('userSearch').value = '';
+    document.getElementById('userRoleFilter').value = '';
+    document.getElementById('userStatusFilter').value = '';
+    filterUsers();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    lucide.createIcons();
+});
+</script>
+{% endblock %}

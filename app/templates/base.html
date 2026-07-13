@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}ACCIO - Finance AR Ticketing{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0e1830;
+            --surface: rgba(255, 255, 255, 0.06);
+            --surface-2: rgba(255, 255, 255, 0.04);
+            --surface-solid: rgba(20, 30, 50, 0.85);
+            --border: rgba(255, 255, 255, 0.10);
+            --border-strong: rgba(255, 255, 255, 0.15);
+            --text: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.60);
+            --text-faint: rgba(255, 255, 255, 0.35);
+            --primary: #14b8a6;
+            --primary-hover: #0d9488;
+            --primary-light: rgba(20, 184, 166, 0.15);
+            --radius: 0.625rem;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.20);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.25);
+            --font: 'Inter', sans-serif;
+        }
+        body { font-family: var(--font); background: var(--bg); color: var(--text); margin: 0; }
+        * { box-sizing: border-box; }
+
+        /* ── Animated gradient background (same as login page) ── */
+        .app-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 30%, rgba(1,105,111,0.50) 0%, transparent 60%),
+                radial-gradient(ellipse 70% 50% at 80% 70%, rgba(8,145,178,0.40) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 50% 50%, rgba(20,184,166,0.25) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 40% at 30% 80%, rgba(6,182,212,0.20) 0%, transparent 60%),
+                #0e1830;
+            background-size: 200% 200%, 200% 200%, 200% 200%, 200% 200%, 100% 100%;
+            animation: app-bg-shift 20s ease-in-out infinite alternate;
+        }
+        @keyframes app-bg-shift {
+            0%   { background-position: 0% 0%, 100% 100%, 50% 50%, 0 0; }
+            100% { background-position: 40% 30%, 60% 70%, 70% 30%, 0 0; }
+        }
+
+        /* ── Floating blurred orbs ── */
+        .app-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.35;
+            z-index: 0;
+            pointer-events: none;
+            animation: app-orb-float 25s ease-in-out infinite;
+        }
+        .app-orb-1 { width: 400px; height: 400px; background: #01696f; top: -100px; left: -100px; }
+        .app-orb-2 { width: 350px; height: 350px; background: #0891b2; bottom: -80px; right: -80px; animation-delay: -8s; }
+        .app-orb-3 { width: 280px; height: 280px; background: #06b6d4; top: 50%; left: 60%; animation-delay: -16s; }
+        @keyframes app-orb-float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33%      { transform: translate(30px, -20px) scale(1.1); }
+            66%      { transform: translate(-20px, 20px) scale(0.9); }
+        }
+
+        /* ── Particle canvas (above background, below content) ── */
+        #particle-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 16px; border-radius: 8px; margin: 2px 8px;
+            font-size: 14px; font-weight: 500; color: var(--text-muted);
+            cursor: pointer; transition: all 180ms ease;
+            text-decoration: none;
+        }
+        .nav-item.active { background: var(--primary-light); color: var(--primary); }
+        .nav-item:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+        .badge { display:inline-flex; align-items:center; gap:4px;
+            padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
+        .badge-yellow  { background:rgba(245,158,11,0.15); color:#fbbf24; }
+        .badge-blue    { background:rgba(59,130,246,0.15); color:#60a5fa; }
+        .badge-green   { background:rgba(34,197,94,0.15); color:#4ade80; }
+        .badge-red     { background:rgba(239,68,68,0.15); color:#f87171; }
+        .badge-orange  { background:rgba(249,115,22,0.15); color:#fb923c; }
+
+        .card { background: var(--surface); backdrop-filter: blur(16px) saturate(160%);
+            -webkit-backdrop-filter: blur(16px) saturate(160%);
+            border-radius: var(--radius); border: 1px solid var(--border); padding: 24px;
+            box-shadow: var(--shadow-sm); }
+
+        .form-label { display:block; font-size:13px; font-weight:500;
+            color: var(--text); margin-bottom:6px; }
+        .form-input { width:100%; padding:9px 13px; border-radius: var(--radius);
+            border: 1px solid var(--border); background: rgba(255,255,255,0.05);
+            font-size:14px; color: var(--text); outline:none;
+            transition: border-color 180ms ease, box-shadow 180ms ease; }
+        .form-input:focus { border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(20,184,166,0.15); }
+        .form-input::placeholder { color: var(--text-faint); }
+        select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-opacity='0.6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+        textarea.form-input { resize: vertical; min-height: 100px; }
+
+        .btn-primary { background: linear-gradient(135deg, #01696f 0%, #0891b2 100%); color:white; border:none;
+            padding: 9px 20px; border-radius: var(--radius); font-size:14px;
+            font-weight:600; cursor:pointer; transition: all 180ms ease; display:inline-flex; align-items:center; gap:6px;
+            box-shadow: 0 2px 8px rgba(1,105,111,0.30); }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(1,105,111,0.45); }
+        .btn-primary:disabled { opacity:0.6; cursor:not-allowed; }
+
+        .btn-secondary { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--border);
+            padding: 9px 20px; border-radius: var(--radius); font-size:14px;
+            font-weight:500; cursor:pointer; transition: all 180ms ease; display:inline-flex; align-items:center; gap:6px; }
+        .btn-secondary:hover { background: rgba(255,255,255,0.10); }
+
+        .btn-danger { background: #dc2626; color:white; border:none;
+            padding: 9px 20px; border-radius: var(--radius); font-size:14px;
+            font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-danger:disabled { opacity:0.6; cursor:not-allowed; }
+
+        .tab-bar { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:24px; }
+        .tab { padding:10px 16px; font-size:14px; font-weight:500;
+            color: var(--text-muted); cursor:pointer; border-bottom:2px solid transparent;
+            margin-bottom:-1px; transition: all 180ms ease; background:none; border-top:none; border-left:none; border-right:none; }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab:hover:not(.active) { color: var(--text); }
+
+        table { width:100%; border-collapse:collapse; font-size:14px; }
+        thead th { padding: 10px 16px; text-align:left; font-size:12px; font-weight:600;
+            color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;
+            border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.03);
+            user-select:none; cursor:pointer; }
+        thead th:hover { color: var(--text); }
+        thead th .sort-arrow { margin-left:4px; font-size:10px; display:inline-block; }
+        tbody tr { border-bottom: 1px solid var(--border); cursor:pointer;
+            transition: background 120ms ease; }
+        tbody tr:hover { background: rgba(255,255,255,0.05); }
+        tbody td { padding: 12px 16px; color: var(--text); }
+        .ticket-number { font-weight: 600; color: var(--primary); font-family: 'Courier New', monospace; }
+
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            display:none; align-items:center; justify-content:center; z-index:100; }
+        .modal-overlay.active { display:flex; }
+        .modal { background: linear-gradient(135deg, rgba(1,105,111,0.90) 0%, rgba(8,145,178,0.85) 100%);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255,255,255,0.15); border-radius:12px; padding:32px; width:480px;
+            max-width:90vw; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+        .modal-title { font-size:18px; font-weight:700; margin-bottom:8px; color: var(--text); }
+        .modal-desc { font-size:14px; color: var(--text-muted); margin-bottom:20px; }
+
+        .timeline { position:relative; padding-left:28px; }
+        .timeline::before { content:''; position:absolute; left:8px; top:0; bottom:0; width:2px; background: var(--border); }
+        .timeline-item { position:relative; margin-bottom:20px; }
+        .timeline-dot { position:absolute; left:-24px; top:4px; width:12px; height:12px;
+            border-radius:50%; background: var(--primary); border:2px solid var(--bg);
+            box-shadow: 0 0 0 2px var(--primary); }
+        .timeline-meta { font-size:12px; color: var(--text-muted); margin-bottom:4px; }
+        .timeline-content { font-size:14px; color: var(--text); }
+
+        .file-upload { border:2px dashed var(--border-strong); border-radius:var(--radius);
+            padding:16px; text-align:center; cursor:pointer; transition: all 180ms ease;
+            background: rgba(255,255,255,0.03); }
+        .file-upload:hover { border-color:var(--primary); background:var(--primary-light); }
+        .file-upload.dragover { border-color:var(--primary); background:var(--primary-light); }
+
+        .sidebar-btn-primary { background: linear-gradient(135deg, #01696f 0%, #0891b2 100%); color: white; border: none;
+            border-radius: var(--radius); padding: 10px 16px; font-weight: 600; font-size: 14px;
+            margin: 16px 12px; width: calc(100% - 24px); cursor: pointer;
+            transition: all 180ms ease; display: inline-flex; align-items: center;
+            justify-content: center; gap: 8px; text-decoration: none;
+            box-shadow: 0 2px 8px rgba(1,105,111,0.30); }
+        .sidebar-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(1,105,111,0.45); }
+
+        .kpi-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; }
+        @media (max-width: 768px) { .kpi-grid { grid-template-columns:repeat(2, 1fr); } }
+        @media (max-width: 480px) { .kpi-grid { grid-template-columns:1fr; } }
+
+        .app-shell { display:flex; min-height:calc(100vh - 56px); margin-top:56px; position: relative; z-index: 2; }
+        .sidebar { width:240px; background: rgba(255,255,255,0.04); backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            border-right:1px solid var(--border); height:calc(100vh - 56px); position:fixed; overflow-y:auto; z-index: 2; }
+        .main-content { margin-left:240px; flex:1; min-height:calc(100vh - 56px);
+            overflow-y:auto; padding:32px; position: relative; z-index: 2; }
+        @media (max-width: 768px) { .sidebar { display:none; } .main-content { margin-left:0; } }
+
+        .header { height:56px; background: rgba(255,255,255,0.05); backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom:1px solid var(--border);
+            position:fixed; top:0; width:100%; z-index:50; display:flex;
+            align-items:center; justify-content:space-between; padding:0 24px; }
+        .header-logo { text-decoration:none; display:flex; align-items:center; }
+        .header-logo img { height:36px; width:auto; }
+        .header-right { display:flex; align-items:center; gap:8px; }
+        .role-badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px;
+            background:var(--primary-light); color:var(--primary); text-transform:capitalize; }
+
+        /* Toast System */
+        .toast-container { position:fixed; top:66px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px; }
+        .toast { background: var(--surface-solid); backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--border-strong); border-radius:10px; padding:14px 16px; min-width:300px; max-width:400px;
+            box-shadow:0 8px 24px rgba(0,0,0,0.30); border-left:4px solid;
+            display:flex; align-items:flex-start; gap:12px; animation:toast-in 220ms cubic-bezier(0.16,1,0.3,1); }
+        .toast.dismissing { animation:toast-out 200ms ease forwards; }
+        @keyframes toast-in { from { opacity:0; transform:translateX(40px); } to { opacity:1; transform:translateX(0); } }
+        @keyframes toast-out { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(40px); } }
+        .toast-icon { flex-shrink:0; width:18px; height:18px; margin-top:1px; }
+        .toast-body { flex:1; }
+        .toast-title { font-size:14px; font-weight:600; color:var(--text); margin-bottom:2px; }
+        .toast-message { font-size:13px; color:var(--text-muted); line-height:1.4; }
+        .toast-close { flex-shrink:0; cursor:pointer; color:var(--text-faint); background:none; border:none; padding:0; line-height:1; font-size:18px; }
+        .toast-close:hover { color:var(--text); }
+
+        /* Filter Bar */
+        .filter-bar { display:flex; align-items:center; gap:10px; padding:16px;
+            background: var(--surface); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border:1px solid var(--border); border-radius:10px; margin-bottom:16px; flex-wrap:wrap; }
+        .filter-input { flex:1; min-width:180px; padding:8px 12px 8px 36px;
+            border:1px solid var(--border); border-radius:8px; font-size:14px; background:rgba(255,255,255,0.05); color: var(--text); }
+        .filter-input::placeholder { color: var(--text-faint); }
+        .filter-input:focus { border-color:var(--primary); outline:none; box-shadow:0 0 0 3px rgba(20,184,166,0.12); }
+        .filter-select { padding:8px 32px 8px 12px; border:1px solid var(--border);
+            border-radius:8px; font-size:14px; background:rgba(255,255,255,0.05); color: var(--text); appearance:none; cursor:pointer; min-width:130px; }
+
+        /* Pagination */
+        .pagination { display:flex; align-items:center; justify-content:space-between; padding:16px 0; margin-top:8px; }
+        .pagination-info { font-size:13px; color:var(--text-muted); }
+        .pagination-controls { display:flex; align-items:center; gap:4px; }
+        .page-btn { width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+            border-radius:8px; font-size:14px; font-weight:500; cursor:pointer;
+            border:1px solid var(--border); background:rgba(255,255,255,0.05); color:var(--text); transition:all 150ms ease; }
+        .page-btn:hover { background:var(--primary-light); border-color:var(--primary); color:var(--primary); }
+        .page-btn.active { background:var(--primary); color:white; border-color:var(--primary); }
+        .page-btn:disabled { opacity:0.4; cursor:not-allowed; }
+        .page-size-select { padding:6px 10px; border-radius:8px; border:1px solid var(--border); font-size:13px; margin-left:12px; background:rgba(255,255,255,0.05); color: var(--text); }
+
+        /* Spinner */
+        .spinner { animation:spin 1s linear infinite; display:inline-block; margin-right:6px; vertical-align:middle; }
+        @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+
+        /* Notifications */
+        .notif-bell { position:relative; cursor:pointer; padding:8px; border-radius:8px; transition:background 150ms; }
+        .notif-bell:hover { background:rgba(255,255,255,0.08); }
+        .notif-badge { position:absolute; top:4px; right:4px; background:#dc2626; color:white;
+            border-radius:9999px; font-size:10px; font-weight:700; min-width:16px; height:16px;
+            display:flex; align-items:center; justify-content:center; padding:0 4px; }
+        .notif-panel { position:absolute; top:56px; right:16px; width:380px;
+            background: var(--surface-solid); backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid var(--border-strong); border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,0.30);
+            z-index:200; overflow:hidden; display:none;
+            animation:slide-down 180ms cubic-bezier(0.16,1,0.3,1); }
+        .notif-panel.open { display:block; }
+        @keyframes slide-down { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+        .notif-header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+        .notif-header h3 { margin:0; font-size:15px; font-weight:600; color: var(--text); }
+        .notif-header a { font-size:12px; color:var(--primary); text-decoration:none; cursor:pointer; }
+        .notif-list { max-height:400px; overflow-y:auto; }
+        .notif-item { padding:14px 20px; border-bottom:1px solid var(--border); cursor:pointer; transition:background 120ms; }
+        .notif-item:hover { background:rgba(255,255,255,0.05); }
+        .notif-item.unread { background:var(--primary-light); }
+        .notif-item-title { font-size:13px; font-weight:600; margin-bottom:2px; color: var(--text); }
+        .notif-item-msg { font-size:12px; color:var(--text-muted); }
+        .notif-item-time { font-size:11px; color:var(--text-faint); margin-top:2px; }
+        .notif-dot { width:8px; height:8px; border-radius:50%; background:var(--primary); display:inline-block; margin-right:6px; flex-shrink:0; }
+        .notif-footer { padding:12px 20px; text-align:center; border-top:1px solid var(--border); }
+        .notif-footer a { font-size:13px; color:var(--primary); text-decoration:none; }
+
+        /* Bulk action bar */
+        .bulk-bar { position:fixed; bottom:0; left:240px; right:0;
+            background: var(--surface-solid); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top:1px solid var(--border); padding:16px 32px; display:none; align-items:center;
+            justify-content:space-between; z-index:50; box-shadow:0 -4px 20px rgba(0,0,0,0.20); }
+        @keyframes slide-up { from { transform:translateY(100%); } to { transform:translateY(0); } }
+
+        /* Ticket number copy */
+        .ticket-num-wrapper { display:inline-flex; align-items:center; gap:6px; }
+        .ticket-num { font-family:monospace; font-weight:600; color:var(--primary); }
+        .copy-btn { background:none; border:none; cursor:pointer; color:var(--text-faint);
+            padding:2px; border-radius:4px; transition:color 150ms; line-height:1; }
+        .copy-btn:hover { color:var(--primary); }
+
+        .highlight-match { background:rgba(250,204,21,0.25); padding:0 2px; border-radius:2px; }
+
+        /* Tom Select dark theme overrides */
+        .ts-wrapper { --ts-bg: rgba(255,255,255,0.05); }
+        .ts-control { background: rgba(255,255,255,0.05) !important; border: 1px solid var(--border) !important; color: var(--text) !important; }
+        .ts-control input { color: var(--text) !important; }
+        .ts-dropdown { background: var(--surface-solid) !important; border: 1px solid var(--border-strong) !important; color: var(--text) !important; }
+        .ts-dropdown .active { background: var(--primary-light) !important; color: var(--primary) !important; }
+        .ts-dropdown .optgroup-header { background: rgba(255,255,255,0.03) !important; color: var(--text-muted) !important; }
+
+        @media (max-width: 768px) {
+            .filter-bar { flex-direction:column; align-items:stretch; }
+            .filter-input { min-width:auto; }
+            .filter-select { min-width:auto; }
+            .bulk-bar { left:0; flex-direction:column; gap:8px; }
+            .toast { min-width:auto; max-width:calc(100vw - 40px); }
+            .notif-panel { width:calc(100vw - 32px); right:16px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated gradient background -->
+    <div class="app-bg"></div>
+    <div class="app-orb app-orb-1"></div>
+    <div class="app-orb app-orb-2"></div>
+    <div class="app-orb app-orb-3"></div>
+
+    <!-- Particle canvas (mouse-following, all pages) -->
+    <canvas id="particle-canvas"></canvas>
+
+    {% if not hide_sidebar %}
+    <header class="header">
+        <a href="{% if current_user.role == 'admin' %}{{ url_for('admin.dashboard') }}{% elif current_user.role == 'approver' %}{{ url_for('appr.queue') }}{% else %}{{ url_for('req.dashboard') }}{% endif %}" class="header-logo">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="ACCIO" style="height:36px;width:auto;">
+            <span style="font-size:18px;font-weight:700;color:var(--primary);margin-left:8px;letter-spacing:-0.02em;">ACCIO</span>
+        </a>
+        <div class="header-right">
+            <!-- Notification Bell with Tooltip -->
+            <div class="notif-bell" onclick="toggleNotifPanel()" style="position:relative;" title="Notifications">
+                <i data-lucide="bell" style="width:20px;height:20px;display:block;color:var(--text-muted);"></i>
+                <span class="notif-badge" id="notif-count" style="display:none">0</span>
+            </div>
+            <span style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:14px; font-weight:500; color:var(--text);">{{ current_user.display_name }}</span>
+                {% if current_user.is_authenticated %}
+                    {% set scopes_list = current_user.scopes.all() %}
+                    {% if scopes_list %}
+                        {% for s in scopes_list %}
+                            <span class="badge" title="Scope" style="background:var(--primary-light);color:var(--primary);">{{ s.name }}</span>
+                        {% endfor %}
+                    {% endif %}
+                {% endif %}
+            </span>
+            {% if current_user.is_authenticated %}
+            <span class="role-badge">{{ current_user.role }}</span>
+            <a href="{{ url_for('auth.logout') }}" title="Logout" style="font-size:14px; color:var(--text-muted); text-decoration:none; padding:4px 8px; border-radius:6px; transition:background 120ms;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'">
+                <i data-lucide="log-out" style="width:16px;height:16px;vertical-align:middle;"></i>
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Notification Panel -->
+    <div class="notif-panel" id="notifPanel">
+        <div class="notif-header">
+            <h3>Notifications</h3>
+            <a onclick="markAllNotifRead()">Mark all as read</a>
+        </div>
+        <div class="notif-list" id="notifList">
+            <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">Loading...</div>
+        </div>
+        <div class="notif-footer">
+            <a href="/notifications">View all notifications</a>
+        </div>
+    </div>
+
+    <div class="app-shell">
+        <aside class="sidebar">
+            {% block sidebar %}
+            {% if current_user.role == 'admin' %}
+                <div style="padding:12px 0;">
+                    <a href="{{ url_for('req.new_ticket') }}" class="sidebar-btn-primary">
+                        <i data-lucide="plus" style="width:16px;height:16px;"></i>
+                        Create Request
+                    </a>
+                    <a href="{{ url_for('admin.dashboard') }}" class="nav-item {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+                        <i data-lucide="layout-dashboard" style="width:16px;height:16px;"></i>
+                        Dashboard
+                    </a>
+                    <a href="{{ url_for('admin.users') }}" class="nav-item {% if request.endpoint == 'admin.users' %}active{% endif %}">
+                        <i data-lucide="users" style="width:16px;height:16px;"></i>
+                        Users
+                    </a>
+                    <a href="{{ url_for('admin.forms') }}" class="nav-item {% if request.endpoint == 'admin.forms' or request.endpoint == 'admin.edit_form' %}active{% endif %}">
+                        <i data-lucide="file-text" style="width:16px;height:16px;"></i>
+                        Forms
+                    </a>
+                     <a href="{{ url_for('admin.scopes') }}" class="nav-item {% if request.endpoint == 'admin.scopes' %}active{% endif %}">
+                         <i data-lucide="layers" style="width:16px;height:16px;"></i>
+                         Scopes
+                     </a>
+                     <a href="{{ url_for('admin.categories') }}" class="nav-item {% if request.endpoint == 'admin.categories' %}active{% endif %}">
+                         <i data-lucide="tags" style="width:16px;height:16px;"></i>
+                         Categories
+                     </a>
+                    <a href="{{ url_for('admin.all_tickets') }}" class="nav-item {% if request.endpoint == 'admin.all_tickets' %}active{% endif %}">
+                        <i data-lucide="list" style="width:16px;height:16px;"></i>
+                        All Tickets
+                    </a>
+                    <a href="{{ url_for('admin.audit_log') }}" class="nav-item {% if request.endpoint == 'admin.audit_log' %}active{% endif %}">
+                        <i data-lucide="shield" style="width:16px;height:16px;"></i>
+                        Audit Log
+                    </a>
+                    <div style="border-top:1px solid var(--border); margin:8px 12px; padding-top:8px;">
+                        <a href="{{ url_for('req.dashboard') }}" class="nav-item {% if request.endpoint == 'req.dashboard' %}active{% endif %}">
+                            <i data-lucide="ticket" style="width:16px;height:16px;"></i>
+                            My Requests
+                        </a>
+                        <a href="{{ url_for('admin.all_tickets') }}" class="nav-item {% if request.endpoint == 'admin.all_tickets' %}active{% endif %}">
+                            <i data-lucide="history" style="width:16px;height:16px;"></i>
+                            Request History
+                        </a>
+                    </div>
+                </div>
+            {% elif current_user.role == 'approver' %}
+                <div style="padding:12px 0;">
+                    <a href="{{ url_for('req.new_ticket') }}" class="sidebar-btn-primary">
+                        <i data-lucide="plus" style="width:16px;height:16px;"></i>
+                        Create Request
+                    </a>
+                    <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;padding:8px 16px 4px;">Approval Queues</div>
+                    {% set active_scopes = active_scopes if active_scopes is defined else [] %}
+                    {% for s in active_scopes %}
+                    <a href="{{ url_for('appr.queue_dynamic', scope_name=s.name) }}" class="nav-item {% if request.endpoint == 'appr.queue_dynamic' and request.view_args and request.view_args.get('scope_name') == s.name %}active{% endif %}">
+                        <i data-lucide="inbox" style="width:16px;height:16px;"></i>
+                        {{ s.name }} Queue
+                    </a>
+                    {% endfor %}
+                    {% if not active_scopes %}
+                    <a href="{{ url_for('appr.queue') }}" class="nav-item {% if request.endpoint == 'appr.queue' %}active{% endif %}"><i data-lucide="inbox" style="width:16px;height:16px;"></i>Approval Queue</a>
+                    {% endif %}
+                    <a href="{{ url_for('appr.approval_history') }}" class="nav-item {% if request.endpoint == 'appr.approval_history' %}active{% endif %}">
+                        <i data-lucide="clock" style="width:16px;height:16px;"></i>
+                        Approval History
+                    </a>
+                    <a href="{{ url_for('appr.request_history') }}" class="nav-item {% if request.endpoint == 'appr.request_history' %}active{% endif %}">
+                        <i data-lucide="list" style="width:16px;height:16px;"></i>
+                        Request History
+                    </a>
+                    <div style="border-top:1px solid var(--border); margin:8px 12px; padding-top:8px;">
+                        <a href="{{ url_for('req.dashboard') }}" class="nav-item {% if request.endpoint == 'req.dashboard' %}active{% endif %}">
+                            <i data-lucide="ticket" style="width:16px;height:16px;"></i>
+                            My Requests
+                        </a>
+                    </div>
+                </div>
+            {% else %}
+                <div style="padding:12px 0;">
+                    <a href="{{ url_for('req.new_ticket') }}" class="sidebar-btn-primary">
+                        <i data-lucide="plus" style="width:16px;height:16px;"></i>
+                        Create Request
+                    </a>
+                    <a href="{{ url_for('req.dashboard') }}" class="nav-item {% if request.endpoint in ['req.dashboard', 'req.ticket_detail'] and request.args.get('view') != 'history' %}active{% endif %}">
+                        <i data-lucide="ticket" style="width:16px;height:16px;"></i>
+                        My Requests
+                    </a>
+                    <a href="{{ url_for('req.dashboard') }}?view=history" class="nav-item {% if request.endpoint == 'req.dashboard' and request.args.get('view') == 'history' %}active{% endif %}">
+                        <i data-lucide="clock" style="width:16px;height:16px;"></i>
+                        Request History
+                    </a>
+                </div>
+            {% endif %}
+            {% endblock %}
+        </aside>
+
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% else %}
+    {% block full_content %}{% endblock %}
+    {% endif %}
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Generic Action Modal (for Approve/Reject/Send Back) -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" style="width:500px;">
+            <h3 class="modal-title" id="modalTitle">Confirm Action</h3>
+            <p class="modal-desc" id="modalDesc">Are you sure?</p>
+            <form method="POST" id="modalForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="margin-bottom:16px;">
+                    <label class="form-label" for="modalComment">Comment <span style="color:#f87171;">*</span></label>
+                    <textarea id="modalComment" name="comment" class="form-input" rows="3" required placeholder="Please provide a comment..."></textarea>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" id="modalSubmitBtn">Confirm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Session Timeout Modal -->
+    <div class="modal-overlay" id="session-modal" style="display:none;">
+        <div class="modal" style="max-width:400px;text-align:center;">
+            <div style="font-size:40px;margin-bottom:16px">⏱️</div>
+            <h2 class="modal-title">Session Expiring Soon</h2>
+            <p class="modal-desc">You will be logged out in <strong id="countdown">5:00</strong> due to inactivity.</p>
+            <div style="display:flex;gap:12px;justify-content:center;margin-top:24px;">
+                <button onclick="resetSessionTimer()" class="btn-primary">Stay Logged In</button>
+                <button onclick="window.location='/auth/logout'" class="btn-secondary">Logout Now</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── PARTICLE SYSTEM (mouse-following, all pages) ──
+        (function () {
+            const canvas = document.getElementById('particle-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            let lastSpawn = 0;
+            const MAX_PARTICLES = 100;
+
+            function resize() {
+                canvas.width  = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const colors = [
+                { r: 20,  g: 184, b: 166 },
+                { r: 8,   g: 145, b: 178 },
+                { r: 1,   g: 105, b: 111 },
+                { r: 125, g: 211, b: 252 }
+            ];
+
+            function spawnParticles(x, y, count) {
+                for (let i = 0; i < count; i++) {
+                    if (particles.length >= MAX_PARTICLES) break;
+                    const c = colors[Math.floor(Math.random() * colors.length)];
+                    particles.push({
+                        x: x + (Math.random() - 0.5) * 12,
+                        y: y + (Math.random() - 0.5) * 12,
+                        vx: (Math.random() - 0.5) * 1.5,
+                        vy: (Math.random() - 0.5) * 1.5 - 0.5,
+                        size: Math.random() * 2.5 + 1.5,
+                        maxSize: Math.random() * 2.5 + 1.5,
+                        life: 1,
+                        color: c
+                    });
+                }
+            }
+
+            document.addEventListener('mousemove', function (e) {
+                const now = Date.now();
+                if (now - lastSpawn > 25) {
+                    lastSpawn = now;
+                    spawnParticles(e.clientX, e.clientY, 1);
+                }
+            });
+
+            document.addEventListener('touchmove', function (e) {
+                if (e.touches.length > 0) {
+                    spawnParticles(e.touches[0].clientX, e.touches[0].clientY, 1);
+                }
+            }, { passive: true });
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.02;
+                    p.life -= 0.015;
+                    p.size = p.maxSize * p.life;
+                    if (p.life <= 0 || p.size <= 0.1) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+                    ctx.save();
+                    ctx.globalAlpha = p.life * 0.7;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = 'rgba(' + p.color.r + ',' + p.color.g + ',' + p.color.b + ',1)';
+                    ctx.fillStyle = 'rgba(' + p.color.r + ',' + p.color.g + ',' + p.color.b + ',0.8)';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        })();
+
+        // ── TOAST NOTIFICATION SYSTEM ──
+        window.toast = {
+            show: function(type, title, message, duration) {
+                duration = duration || 4000;
+                var colors = {success:'#4ade80',error:'#f87171',warning:'#fbbf24',info:'#14b8a6'};
+                var icons = {success:'check-circle',error:'x-circle',warning:'alert-triangle',info:'info'};
+                var color = colors[type] || '#14b8a6';
+                var iconName = icons[type] || 'info';
+
+                var container = document.getElementById('toastContainer');
+                var toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.style.borderLeftColor = color;
+                toast.innerHTML = '<i data-lucide="' + iconName + '" class="toast-icon" style="color:' + color + ';width:18px;height:18px;"></i>' +
+                    '<div class="toast-body">' +
+                    (title ? '<div class="toast-title">' + title + '</div>' : '') +
+                    '<div class="toast-message">' + message + '</div></div>' +
+                    '<button class="toast-close" onclick="this.closest(\'.toast\').classList.add(\'dismissing\');setTimeout(function(){this.closest(\'.toast\').remove()}.bind(this),200)">&times;</button>';
+                container.appendChild(toast);
+                lucide.createIcons();
+
+                while (container.children.length > 3) {
+                    var first = container.children[0];
+                    first.classList.add('dismissing');
+                    setTimeout(function(el){el.remove()}, 200, first);
+                }
+
+                setTimeout(function() {
+                    toast.classList.add('dismissing');
+                    setTimeout(function(){toast.remove()}, 200);
+                }, duration);
+            },
+            success: function(title, msg) { this.show('success', title, msg); },
+            error: function(title, msg) { this.show('error', title, msg); },
+            warning: function(title, msg) { this.show('warning', title, msg); },
+            info: function(title, msg) { this.show('info', title, msg); }
+        };
+
+        // Convert flash messages to toasts
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+            var flashData = {{ get_flashed_messages(with_categories=true) | tojson }};
+            if (flashData && flashData.length) {
+                flashData.forEach(function(item) {
+                    var cat = item[0], msg = item[1];
+                    var map = {success:'success',error:'error',warning:'warning',info:'info',message:'info'};
+                    toast.show(map[cat] || 'info', '', msg);
+                });
+            }
+        });
+
+        // ── SESSION TIMEOUT ──
+        {% if not hide_sidebar %}
+        var SESSION_TIMEOUT = 30 * 60 * 1000;
+        var WARN_BEFORE = 5 * 60 * 1000;
+        var sessionTimer, warnTimer, countdownInterval;
+
+        function resetSessionTimer() {
+            var modal = document.getElementById('session-modal');
+            if (modal) modal.style.display = 'none';
+            clearTimeout(sessionTimer); clearTimeout(warnTimer); clearInterval(countdownInterval);
+            warnTimer = setTimeout(showSessionWarning, SESSION_TIMEOUT - WARN_BEFORE);
+            sessionTimer = setTimeout(function(){window.location='/auth/logout'}, SESSION_TIMEOUT);
+        }
+
+        function showSessionWarning() {
+            var secs = 300;
+            var modal = document.getElementById('session-modal');
+            if (modal) modal.style.display = 'flex';
+            countdownInterval = setInterval(function() {
+                secs--;
+                var m = Math.floor(secs/60), s = secs%60;
+                var el = document.getElementById('countdown');
+                if (el) el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+                if (secs <= 0) { clearInterval(countdownInterval); window.location = '/auth/logout'; }
+            }, 1000);
+        }
+
+        ['mousemove','click','keypress','scroll','touchstart'].forEach(function(e) {
+            document.addEventListener(e, resetSessionTimer, {passive:true});
+        });
+
+        if (document.getElementById('session-modal')) resetSessionTimer();
+        {% endif %}
+
+        // ── NOTIFICATIONS ──
+        {% if not hide_sidebar %}
+        function getCsrfToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : '';
+        }
+
+        function toggleNotifPanel() {
+            var panel = document.getElementById('notifPanel');
+            panel.classList.toggle('open');
+            if (panel.classList.contains('open')) {
+                loadNotifications();
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('click', function(e) {
+                var panel = document.getElementById('notifPanel');
+                var bell = document.querySelector('.notif-bell');
+                if (panel && panel.classList.contains('open') && 
+                    !panel.contains(e.target) && !bell.contains(e.target)) {
+                    panel.classList.remove('open');
+                }
+            });
+        });
+
+        function loadNotifications() {
+            fetch('/api/notifications')
+                .then(function(r){return r.json()})
+                .then(function(data){
+                    var list = document.getElementById('notifList');
+                    var badge = document.getElementById('notif-count');
+                    if (data.unread_count > 0) {
+                        badge.style.display = 'flex';
+                        badge.textContent = data.unread_count;
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                    if (!data.notifications || data.notifications.length === 0) {
+                        list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">No notifications</div>';
+                        return;
+                    }
+                    var html = '';
+                    data.notifications.forEach(function(n) {
+                        var timeAgo = getTimeAgo(n.created_at);
+                        html += '<div class="notif-item' + (n.is_read ? '' : ' unread') + '" onclick="openNotif(' + n.id + ',\'' + (n.link || '') + '\')">' +
+                            '<div class="notif-item-title">' + (n.is_read ? '' : '<span class="notif-dot"></span>') + n.title + '</div>' +
+                            '<div class="notif-item-msg">' + n.message + '</div>' +
+                            '<div class="notif-item-time">' + timeAgo + '</div></div>';
+                    });
+                    list.innerHTML = html;
+                });
+        }
+
+        function openNotif(id, link) {
+            fetch('/api/notifications/' + id + '/read', {
+                method:'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() }
+            }).then(function(){
+                var items = document.querySelectorAll('.notif-item.unread');
+                items.forEach(function(el){ el.classList.remove('unread'); });
+                updateNotifBadge();
+                closeNotifPanel();
+                if (link) window.location = link;
+            });
+        }
+
+        function closeNotifPanel() {
+            document.getElementById('notifPanel').classList.remove('open');
+        }
+
+        function updateNotifBadge() {
+            var badge = document.getElementById('notif-count');
+            var remaining = document.querySelectorAll('.notif-item.unread').length;
+            if (remaining > 0) {
+                badge.style.display = 'flex';
+                badge.textContent = remaining;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function markAllNotifRead() {
+            fetch('/api/notifications/mark-read', {
+                method:'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() }
+            }).then(function(){
+                document.querySelectorAll('.notif-item.unread').forEach(function(el){el.classList.remove('unread');});
+                document.getElementById('notif-count').style.display = 'none';
+            });
+        }
+
+        function getTimeAgo(dateStr) {
+            var now = new Date(), d = new Date(dateStr);
+            var diff = Math.floor((now - d) / 1000);
+            if (diff < 60) return 'Just now';
+            if (diff < 3600) return Math.floor(diff/60) + ' min ago';
+            if (diff < 86400) return Math.floor(diff/3600) + ' hours ago';
+            return d.toLocaleDateString();
+        }
+
+        var notifInterval;
+        if (document.getElementById('notifPanel')) {
+            notifInterval = setInterval(loadNotifications, 300000);
+        }
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) { clearInterval(notifInterval); }
+            else { loadNotifications(); notifInterval = setInterval(loadNotifications, 300000); }
+        });
+        {% endif %}
+
+        // ── MODAL ──
+        function openModal(title, desc, actionUrl, submitText) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalDesc').textContent = desc;
+            document.getElementById('modalForm').action = actionUrl;
+            document.getElementById('modalSubmitBtn').textContent = submitText || 'Confirm';
+            document.getElementById('modalComment').value = '';
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var overlay = document.getElementById('modalOverlay');
+            if (overlay) overlay.addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+        });
+
+        // ── FILE SELECT ──
+        function handleFileSelect(inputId, displayId) {
+            var input = document.getElementById(inputId);
+            var display = document.getElementById(displayId);
+            if (input && display) {
+                input.addEventListener('change', function() {
+                    display.textContent = this.files && this.files[0] ? this.files[0].name : 'No file chosen';
+                    display.style.color = this.files && this.files[0] ? 'var(--text)' : 'var(--text-muted)';
+                });
+            }
+        }
+
+        // ── SPINNER SUBMIT ──
+        function submitWithSpinner(btn, loadingText) {
+            loadingText = loadingText || 'Processing...';
+            var original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="display:inline-block;margin-right:6px;vertical-align:middle;"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>' + loadingText;
+            setTimeout(function(){ btn.disabled = false; btn.innerHTML = original; }, 10000);
+        }
+
+        // ── TICKET NUMBER COPY ──
+        function copyTicketNum(btn, text) {
+            navigator.clipboard.writeText(text).then(function() {
+                btn.innerHTML = '<i data-lucide="check" style="width:13px;height:13px"></i>';
+                btn.style.color = '#4ade80';
+                setTimeout(function() {
+                    btn.innerHTML = '<i data-lucide="copy" style="width:13px;height:13px"></i>';
+                    btn.style.color = '';
+                    lucide.createIcons();
+                }, 2000);
+            });
+        }
+
+        // ── UNSAVED CHANGES WARNING ──
+        var formDirty = false;
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('form input, form textarea, form select').forEach(function(el) {
+                el.addEventListener('change', function() { formDirty = true; });
+                el.addEventListener('input', function() { formDirty = true; });
+            });
+            document.querySelectorAll('form').forEach(function(f) {
+                f.addEventListener('submit', function() { formDirty = false; });
+            });
+        });
+        window.addEventListener('beforeunload', function(e) {
+            if (formDirty) { e.preventDefault(); e.returnValue = ''; }
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+</body>
+</html>

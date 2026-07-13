@@ -1,0 +1,18 @@
+# Cline Project Rules
+
+## Memory Bank
+This project uses a Cline Memory Bank in /memory-bank/.
+At the start of every new session, read ALL files in memory-bank/ before doing anything.
+Update activeContext.md and progress.md after completing any significant work.
+
+## Code Style
+- Flask app using factory pattern
+- Follow existing blueprint structure for new routes
+- Always parameterize SQL; never concatenate user input into queries
+- Sanitize all user input before writing to Excel cells (use sanitize_cell())
+- SECRET_KEY must always come from environment — never hardcode
+
+## Security Rules (from Snyk/Bandit audit — 2026-06-23)
+- seed_database() must only run in FLASK_ENV=development
+- No bare except: pass — always log exceptions
+- No hardcoded credentials anywhere in the codebase

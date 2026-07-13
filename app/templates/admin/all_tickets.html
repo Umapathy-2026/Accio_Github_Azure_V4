@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}All Tickets - ACCIO{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+        <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">All Tickets</h1>
+        <p style="font-size:14px;color:var(--text-muted);margin-top:4px;">View all tickets in the system</p>
+    </div>
+    <button class="btn-primary" onclick="exportToExcel()" style="white-space:nowrap;">
+        <i data-lucide="download" style="width:16px;height:16px;"></i> Export to Excel
+    </button>
+</div>
+
+{% if cap_hit %}
+<div class="alert-banner" style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;margin-bottom:20px;font-size:14px;font-weight:500;background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.30);">
+    <i data-lucide="alert-triangle" style="width:16px;height:16px;"></i>
+    <span>Showing 500 of {{ total }} tickets. Use filters to narrow results or export to Excel to view all.</span>
+</div>
+{% endif %}
+
+<div class="filter-bar">
+    <div style="position:relative;flex:1;min-width:180px;">
+        <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-faint);pointer-events:none;"></i>
+        <input type="text" class="filter-input" id="admSearch" placeholder="Search tickets..." oninput="debounceAdmFilter()" style="padding-left:36px;">
+    </div>
+    <select class="filter-select" id="admStatus" onchange="applyAdmFilters()">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Under Review">Under Review</option>
+        <option value="Approved">Approved</option>
+        <option value="Rejected">Rejected</option>
+        <option value="Needs Clarification">Needs Clarification</option>
+        <option value="Sent to Fulfilment">Sent to Fulfilment</option>
+    </select>
+    <select class="filter-select" id="admScope" onchange="applyAdmFilters()">
+        <option value="">All Scopes</option>
+        {% for s in active_scopes %}
+        <option value="{{ s.name }}">{{ s.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="date" class="filter-select" id="admDateFrom" onchange="applyAdmFilters()" style="min-width:140px;" title="From date">
+    <input type="date" class="filter-select" id="admDateTo" onchange="applyAdmFilters()" style="min-width:140px;" title="To date">
+    <button class="btn-secondary" id="admClear" onclick="clearAdmFilters()" style="display:none;padding:6px 12px;font-size:13px;">
+        <i data-lucide="x" style="width:14px;height:14px;"></i> Clear
+    </button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+    <table id="admTable">
+        <thead>
+            <tr>
+                <th onclick="sortAdmTable(0)" data-col="0">Ticket # <span class="sort-arrow"></span></th>
+                <th onclick="sortAdmTable(1)" data-col="1">Created By <span class="sort-arrow"></span></th>
+                <th onclick="sortAdmTable(2)" data-col="2">Assigned To <span class="sort-arrow"></span></th>
+                <th onclick="sortAdmTable(3)" data-col="3">Issue Type <span class="sort-arrow"></span></th>
+                <th onclick="sortAdmTable(4)" data-col="4">Subject <span class="sort-arrow"></span></th>
+                <th onclick="sortAdmTable(5)" data-col="5">Status <span class="sort-arrow"></span></th>
+                <th onclick="sortAdmTable(6)" data-col="6">Date <span class="sort-arrow"></span></th>
+            </tr>
+        </thead>
+        <tbody id="admBody">
+            {% for ticket in tickets %}
+            <tr data-num="{{ ticket.ticket_number|lower }}" data-creator="{{ ticket.creator.display_name|lower }}" data-assignee="{{ (ticket.assignee.display_name or '')|lower }}" data-issue="{{ ticket.issue_form.name|lower }}" data-subject="{{ ticket.subject|lower }}" data-status="{{ ticket.current_status }}" data-date="{{ ticket.created_at.strftime('%Y-%m-%d') }}" data-scope="{{ ticket.scope or '' }}">
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'">
+                    <span class="ticket-num-wrapper">
+                        <span class="ticket-num">{{ ticket.ticket_number }}</span>
+                        <button class="copy-btn" onclick="event.stopPropagation();copyTicketNum(this,'{{ ticket.ticket_number }}')"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
+                    </span>
+                </td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'">{{ ticket.creator.display_name }}</td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'">{{ ticket.assignee.display_name if ticket.assignee else '—' }}</td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ticket.issue_form.name }}</td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ticket.subject }}</td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'">
+                    {% set s = ticket.current_status %}
+                    {% if s == 'Pending' %}<span class="badge badge-yellow"><i data-lucide="clock" style="width:12px;height:12px;"></i> Pending</span>
+                    {% elif s == 'Under Review' %}<span class="badge badge-blue"><i data-lucide="search" style="width:12px;height:12px;"></i> Under Review</span>
+                    {% elif s == 'Approved' %}<span class="badge badge-green"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Approved</span>
+                    {% elif s == 'Rejected' %}<span class="badge badge-red"><i data-lucide="x-circle" style="width:12px;height:12px;"></i> Rejected</span>
+                    {% elif s == 'Needs Clarification' %}<span class="badge badge-orange"><i data-lucide="message-square" style="width:12px;height:12px;"></i> Needs Clarification</span>
+                    {% elif s == 'Sent to Fulfilment' %}<span class="badge badge-green"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Sent to Fulfilment</span>
+                    {% else %}<span class="badge badge-yellow">{{ s }}</span>{% endif %}
+                </td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'" style="color:var(--text-muted);font-size:13px;">{{ ticket.created_at.strftime('%d %b %Y') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div id="admEmpty" style="display:none;text-align:center;padding:64px 32px;color:var(--text-muted);">
+        <i data-lucide="inbox" style="width:40px;height:40px;margin:0 auto 16px;display:block;color:var(--text-faint)"></i>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px">No tickets match your filters</p>
+    </div>
+</div>
+
+<div class="pagination" id="admPagination">
+    <div class="pagination-info" id="admInfo">Showing tickets</div>
+    <div style="display:flex;align-items:center;">
+        <div class="pagination-controls" id="admPageControls"></div>
+        <select class="page-size-select" id="admPageSize" onchange="applyAdmFilters()">
+            <option value="10">10 / page</option>
+            <option value="20" selected>20 / page</option>
+            <option value="50">50 / page</option>
+        </select>
+    </div>
+</div>
+
+<script>
+var admTickets = [];
+document.querySelectorAll('#admBody tr').forEach(function(row) {
+    if (row.dataset.num) {
+        admTickets.push({
+            num: row.dataset.num, creator: row.dataset.creator, assignee: row.dataset.assignee,
+            issue: row.dataset.issue, subject: row.dataset.subject,
+            status: row.dataset.status, date: row.dataset.date, scope: row.dataset.scope || '',
+            html: row.outerHTML
+        });
+    }
+});
+var admPage = 1, admSort = {col:-1, dir:'asc'};
+function debounceAdmFilter() { clearTimeout(window._af); window._af = setTimeout(applyAdmFilters, 250); }
+function applyAdmFilters() {
+    var search = document.getElementById('admSearch').value.toLowerCase();
+    var status = document.getElementById('admStatus').value;
+    var scope = document.getElementById('admScope').value;
+    var from = document.getElementById('admDateFrom').value;
+    var to = document.getElementById('admDateTo').value;
+    var ps = parseInt(document.getElementById('admPageSize').value);
+    var filtered = admTickets.filter(function(t) {
+        if (search && t.num.indexOf(search)===-1 && t.creator.indexOf(search)===-1 && t.assignee.indexOf(search)===-1 && t.issue.indexOf(search)===-1 && t.subject.indexOf(search)===-1) return false;
+        if (status && t.status !== status) return false;
+        if (scope && t.scope !== scope) return false;
+        if (from && t.date < from) return false;
+        if (to && t.date > to) return false;
+        return true;
+    });
+    if (admSort.col >= 0) {
+        var keys = ['num','creator','assignee','issue','subject','status','date'];
+        var key = keys[admSort.col];
+        filtered.sort(function(a,b) { var va=a[key],vb=b[key]; return admSort.dir==='asc'?(va>vb?1:-1):(va<vb?1:-1); });
+    }
+    var total = filtered.length, tp = Math.max(1, Math.ceil(total/ps));
+    if (admPage > tp) admPage = tp;
+    var start = (admPage-1)*ps, end = Math.min(start+ps, total);
+    var pg = filtered.slice(start, end);
+    var body = document.getElementById('admBody');
+    if (pg.length === 0) { body.innerHTML = ''; document.getElementById('admEmpty').style.display = 'block'; }
+    else { document.getElementById('admEmpty').style.display = 'none'; body.innerHTML = pg.map(function(t){return t.html;}).join(''); }
+    document.getElementById('admInfo').textContent = total > 0 ? 'Showing '+(start+1)+'-'+end+' of '+total+' tickets' : 'Showing 0 of 0 tickets';
+    var c = document.getElementById('admPageControls'); c.innerHTML = '';
+    c.appendChild(pgBtn('‹', admPage > 1 ? function(){admPage--;applyAdmFilters();} : null));
+    var sp = Math.max(1, admPage-2), ep = Math.min(tp, admPage+2);
+    if (sp > 1) { c.appendChild(pgBtn('1', function(){admPage=1;applyAdmFilters();})); if (sp > 2) c.appendChild(pgBtn('...', null, true)); }
+    for (var i = sp; i <= ep; i++) (function(p){c.appendChild(pgBtn(p, function(){admPage=p;applyAdmFilters();}, false, p===admPage));})(i);
+    if (ep < tp) { if (ep < tp-1) c.appendChild(pgBtn('...', null, true)); c.appendChild(pgBtn(tp, function(){admPage=tp;applyAdmFilters();})); }
+    c.appendChild(pgBtn('›', admPage < tp ? function(){admPage++;applyAdmFilters();} : null));
+    document.getElementById('admClear').style.display = (search||status||scope||from||to) ? 'inline-flex' : 'none';
+    lucide.createIcons();
+}
+function pgBtn(text, onClick, disabled, active) {
+    var b = document.createElement('button'); b.className='page-btn'+(active?' active':''); b.textContent=text; b.disabled=!onClick; if(onClick)b.onclick=onClick; return b;
+}
+function clearAdmFilters() { document.getElementById('admSearch').value=''; document.getElementById('admStatus').value=''; document.getElementById('admScope').value=''; document.getElementById('admDateFrom').value=''; document.getElementById('admDateTo').value=''; admPage=1; applyAdmFilters(); }
+function sortAdmTable(col) {
+    if (admSort.col === col) admSort.dir = admSort.dir==='asc'?'desc':'asc';
+    else { admSort.col=col; admSort.dir='asc'; }
+    document.querySelectorAll('#admTable thead th .sort-arrow').forEach(function(el){el.textContent='';});
+    var arrow = document.querySelector('#admTable thead th[data-col="'+col+'"] .sort-arrow');
+    if (arrow) arrow.textContent = admSort.dir==='asc'?'↑':'↓';
+    applyAdmFilters();
+}
+document.addEventListener('DOMContentLoaded', function() { if (admTickets.length > 0) applyAdmFilters(); });
+
+function exportToExcel() {
+    var status = document.getElementById('admStatus').value || '';
+    var scope = document.getElementById('admScope').value || '';
+    var from = document.getElementById('admDateFrom').value || '';
+    var to = document.getElementById('admDateTo').value || '';
+    var url = '/admin/tickets/export?status=' + encodeURIComponent(status) + '&scope=' + encodeURIComponent(scope) + '&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+    window.location = url;
+}
+</script>
+{% endblock %}

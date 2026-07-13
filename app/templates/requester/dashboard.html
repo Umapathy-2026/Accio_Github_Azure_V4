@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% block title %}My Requests - ACCIO{% endblock %}
+{% block content %}
+{% set view = request.args.get('view', 'my_requests') %}
+
+{% if view == 'history' %}
+<!-- Request History View -->
+<div style="margin-bottom:28px;display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+        <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">Request History</h1>
+        <p style="font-size:14px;color:var(--text-muted);margin-top:4px">View your resolved requests</p>
+    </div>
+    <button class="btn-primary" onclick="exportHistoryExcel()" style="white-space:nowrap;">
+        <i data-lucide="download" style="width:16px;height:16px;"></i> Export to Excel
+    </button>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div style="position:relative;flex:1;min-width:180px;">
+        <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-faint);pointer-events:none;"></i>
+        <input type="text" class="filter-input" id="histSearch" placeholder="Search requests..." oninput="debounceHistFilter()" style="padding-left:36px;">
+    </div>
+    <select class="filter-select" id="histStatus" onchange="applyHistFilters()">
+        <option value="">All Statuses</option>
+        <option value="Approved">Approved</option>
+        <option value="Rejected">Rejected</option>
+        <option value="Sent to Fulfilment">Sent to Fulfilment</option>
+    </select>
+    <select class="filter-select" id="histScope" onchange="applyHistFilters()">
+        <option value="">All Scopes</option>
+        {% for s in scopes %}
+        <option value="{{ s.name }}">{{ s.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="date" class="filter-select" id="histDateFrom" onchange="applyHistFilters()" style="min-width:140px;" title="From date">
+    <input type="date" class="filter-select" id="histDateTo" onchange="applyHistFilters()" style="min-width:140px;" title="To date">
+    <button class="btn-secondary" id="histClear" onclick="clearHistFilters()" style="display:none;padding:6px 12px;font-size:13px;">
+        <i data-lucide="x" style="width:14px;height:14px;"></i> Clear
+    </button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+    {% set history_tickets = current_user.created_tickets|selectattr('current_status', 'in', ['Approved', 'Rejected', 'Sent to Fulfilment'])|list %}
+    {% if history_tickets %}
+    <table id="histTable">
+        <thead>
+            <tr>
+                <th onclick="sortHistTable(0)" data-col="0">Ticket # <span class="sort-arrow"></span></th>
+                <th onclick="sortHistTable(1)" data-col="1">Issue Type <span class="sort-arrow"></span></th>
+                <th onclick="sortHistTable(2)" data-col="2">Subject <span class="sort-arrow"></span></th>
+                <th onclick="sortHistTable(3)" data-col="3">Status <span class="sort-arrow"></span></th>
+                <th onclick="sortHistTable(4)" data-col="4">Resolved Date <span class="sort-arrow"></span></th>
+            </tr>
+        </thead>
+        <tbody id="histBody">
+            {% for ticket in history_tickets|sort(attribute='updated_at', reverse=True) %}
+            <tr data-num="{{ ticket.ticket_number|lower }}" data-issue="{{ ticket.issue_form.name|lower }}" data-subject="{{ ticket.subject|lower }}" data-status="{{ ticket.current_status }}" data-date="{{ ticket.updated_at.strftime('%Y-%m-%d') }}" data-scope="{{ ticket.scope or '' }}">
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'">
+                    <span class="ticket-num-wrapper">
+                        <span class="ticket-num">{{ ticket.ticket_number }}</span>
+                        <button class="copy-btn" onclick="event.stopPropagation();copyTicketNum(this,'{{ ticket.ticket_number }}')" title="Copy ticket number"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
+                    </span>
+                </td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'">{{ ticket.issue_form.name }}</td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'">{{ ticket.subject }}</td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'">
+                    {% set s = ticket.current_status %}
+                    {% if s == 'Approved' %}<span class="badge badge-green"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Approved</span>
+                    {% elif s == 'Rejected' %}<span class="badge badge-red"><i data-lucide="x-circle" style="width:12px;height:12px;"></i> Rejected</span>
+                    {% elif s == 'Sent to Fulfilment' %}<span class="badge badge-green"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Sent to Fulfilment</span>
+                    {% else %}<span class="badge badge-yellow">{{ s }}</span>{% endif %}
+                </td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'" style="color:var(--text-muted);font-size:13px;">{{ ticket.updated_at.strftime('%d %b %Y') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div id="histEmpty" style="display:none;text-align:center;padding:64px 32px;color:var(--text-muted)">
+        <i data-lucide="search-x" style="width:40px;height:40px;margin:0 auto 16px;display:block;color:var(--text-faint)"></i>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px">No matching requests</p>
+        <p style="font-size:13px">Try adjusting your search or filters.</p>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:64px 32px;color:var(--text-muted)">
+        <i data-lucide="clock" style="width:40px;height:40px;margin:0 auto 16px;display:block;color:var(--text-faint)"></i>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px">No request history yet</p>
+        <p style="font-size:13px">Approved, rejected, or fulfilled requests will appear here.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+<!-- My Requests View -->
+<div style="margin-bottom:28px;display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+        <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">My Requests</h1>
+        <p style="font-size:14px;color:var(--text-muted);margin-top:4px">View and manage your support requests</p>
+    </div>
+    <button class="btn-primary" onclick="exportMyRequestsExcel()" style="white-space:nowrap;">
+        <i data-lucide="download" style="width:16px;height:16px;"></i> Export to Excel
+    </button>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div style="position:relative;flex:1;min-width:180px;">
+        <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-faint);pointer-events:none;"></i>
+        <input type="text" class="filter-input" id="reqSearch" placeholder="Search tickets..." oninput="debounceReqFilter()" style="padding-left:36px;">
+    </div>
+    <select class="filter-select" id="reqStatus" onchange="applyReqFilters()">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Under Review">Under Review</option>
+        <option value="Needs Clarification">Needs Clarification</option>
+    </select>
+    <select class="filter-select" id="reqScope" onchange="applyReqFilters()">
+        <option value="">All Scopes</option>
+        {% for s in scopes %}
+        <option value="{{ s.name }}">{{ s.name }}</option>
+        {% endfor %}
+    </select>
+    <button class="btn-secondary" id="reqClear" onclick="clearReqFilters()" style="display:none;padding:6px 12px;font-size:13px;">
+        <i data-lucide="x" style="width:14px;height:14px;"></i> Clear
+    </button>
+</div>
+<div class="card" style="padding:0;overflow:hidden;">
+    {% set my_tickets = current_user.created_tickets|selectattr('current_status', 'in', ['Pending', 'Under Review', 'Needs Clarification'])|list %}
+    {% if my_tickets %}
+    <table id="reqTable">
+        <thead>
+            <tr>
+                <th onclick="sortReqTable(0)" data-col="0">Ticket # <span class="sort-arrow"></span></th>
+                <th onclick="sortReqTable(1)" data-col="1">Issue Type <span class="sort-arrow"></span></th>
+                <th onclick="sortReqTable(2)" data-col="2">Subject <span class="sort-arrow"></span></th>
+                <th onclick="sortReqTable(3)" data-col="3">Status <span class="sort-arrow"></span></th>
+                <th onclick="sortReqTable(4)" data-col="4">Date <span class="sort-arrow"></span></th>
+            </tr>
+        </thead>
+        <tbody id="reqBody">
+            {% for ticket in my_tickets|sort(attribute='created_at', reverse=True) %}
+            <tr data-num="{{ ticket.ticket_number|lower }}" data-issue="{{ ticket.issue_form.name|lower }}" data-subject="{{ ticket.subject|lower }}" data-status="{{ ticket.current_status }}" data-date="{{ ticket.created_at.strftime('%Y-%m-%d') }}" data-scope="{{ ticket.scope or '' }}">
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'">
+                    <span class="ticket-num-wrapper">
+                        <span class="ticket-num">{{ ticket.ticket_number }}</span>
+                        <button class="copy-btn" onclick="event.stopPropagation();copyTicketNum(this,'{{ ticket.ticket_number }}')" title="Copy ticket number"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
+                    </span>
+                </td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ticket.issue_form.name }}</td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ticket.subject }}</td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'">
+                    {% set s = ticket.current_status %}
+                    {% if s == 'Pending' %}<span class="badge badge-yellow"><i data-lucide="clock" style="width:12px;height:12px;"></i> Pending</span>
+                    {% elif s == 'Under Review' %}<span class="badge badge-blue"><i data-lucide="search" style="width:12px;height:12px;"></i> Under Review</span>
+                    {% elif s == 'Needs Clarification' %}<span class="badge badge-orange"><i data-lucide="message-square" style="width:12px;height:12px;"></i> Needs Clarification</span>
+                    {% else %}<span class="badge badge-yellow">{{ s }}</span>{% endif %}
+                </td>
+                <td onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'" style="color:var(--text-muted);font-size:13px;">{{ ticket.created_at.strftime('%d %b %Y') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div id="reqEmpty" style="display:none;text-align:center;padding:64px 32px;color:var(--text-muted)">
+        <i data-lucide="inbox" style="width:40px;height:40px;margin:0 auto 16px;display:block;color:var(--text-faint)"></i>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px">No tickets match your filters</p>
+        <p style="font-size:13px">Try adjusting your search or filters.</p>
+    </div>
+    {% else %}
+    <div id="reqNoTickets" style="text-align:center;padding:64px 32px;color:var(--text-muted)">
+        <i data-lucide="inbox" style="width:40px;height:40px;margin:0 auto 16px;display:block;color:var(--text-faint)"></i>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px">No open requests</p>
+        <p style="font-size:13px">All your requests have been resolved. Check Request History for past requests.</p>
+        <a href="{{ url_for('req.new_ticket') }}" class="btn-primary" style="margin-top:16px;display:inline-flex;">Create a new request</a>
+    </div>
+    {% endif %}
+</div>
+{% if my_tickets %}
+<div class="pagination" id="reqPagination">
+    <div class="pagination-info" id="reqInfo">Showing tickets</div>
+    <div style="display:flex;align-items:center;">
+        <div class="pagination-controls" id="reqPageControls"></div>
+        <select class="page-size-select" id="reqPageSize" onchange="applyReqFilters()">
+            <option value="10">10 / page</option>
+            <option value="20" selected>20 / page</option>
+            <option value="50">50 / page</option>
+        </select>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<script>
+// Requester ticket filter/sort/pagination
+var reqTickets = [];
+document.querySelectorAll('#reqBody tr').forEach(function(row) {
+    if (row.dataset.num) {
+        reqTickets.push({
+            num: row.dataset.num,
+            issue: row.dataset.issue,
+            subject: row.dataset.subject,
+            status: row.dataset.status,
+            date: row.dataset.date,
+            scope: row.dataset.scope || '',
+            html: row.outerHTML
+        });
+    }
+});
+
+var reqPage = 1, reqSort = {col:-1, dir:'asc'};
+
+function debounceReqFilter() { clearTimeout(window._rf); window._rf = setTimeout(applyReqFilters, 250); }
+
+function applyReqFilters() {
+    var search = document.getElementById('reqSearch').value.toLowerCase();
+    var status = document.getElementById('reqStatus').value;
+    var scope = document.getElementById('reqScope').value;
+    var ps = parseInt(document.getElementById('reqPageSize').value);
+    var filtered = reqTickets.filter(function(t) {
+        if (search && t.num.indexOf(search) === -1 && t.issue.indexOf(search) === -1 && t.subject.indexOf(search) === -1) return false;
+        if (status && t.status !== status) return false;
+        if (scope && t.scope !== scope) return false;
+        return true;
+    });
+    if (reqSort.col >= 0) {
+        var keys = ['num','issue','subject','status','date'];
+        var key = keys[reqSort.col];
+        filtered.sort(function(a,b) { var va=a[key],vb=b[key]; return reqSort.dir==='asc'?(va>vb?1:-1):(va<vb?1:-1); });
+    }
+    var total = filtered.length, tp = Math.max(1, Math.ceil(total/ps));
+    if (reqPage > tp) reqPage = tp;
+    var start = (reqPage-1)*ps, end = Math.min(start+ps, total);
+    var pg = filtered.slice(start, end);
+    var body = document.getElementById('reqBody');
+    if (pg.length === 0) { body.innerHTML = ''; document.getElementById('reqEmpty').style.display = 'block'; }
+    else { document.getElementById('reqEmpty').style.display = 'none'; body.innerHTML = pg.map(function(t){return t.html;}).join(''); }
+    document.getElementById('reqInfo').textContent = total > 0 ? 'Showing '+(start+1)+'–'+end+' of '+total+' tickets' : 'Showing 0 of 0 tickets';
+    var c = document.getElementById('reqPageControls'); c.innerHTML = '';
+    c.appendChild(pgBtn('‹', reqPage > 1 ? function(){reqPage--;applyReqFilters();} : null));
+    var sp = Math.max(1, reqPage-2), ep = Math.min(tp, reqPage+2);
+    if (sp > 1) { c.appendChild(pgBtn('1', function(){reqPage=1;applyReqFilters();})); if (sp > 2) c.appendChild(pgBtn('...', null, true)); }
+    for (var i = sp; i <= ep; i++) (function(p){c.appendChild(pgBtn(p, function(){reqPage=p;applyReqFilters();}, false, p===reqPage));})(i);
+    if (ep < tp) { if (ep < tp-1) c.appendChild(pgBtn('...', null, true)); c.appendChild(pgBtn(tp, function(){reqPage=tp;applyReqFilters();})); }
+    c.appendChild(pgBtn('›', reqPage < tp ? function(){reqPage++;applyReqFilters();} : null));
+    document.getElementById('reqClear').style.display = (search||status) ? 'inline-flex' : 'none';
+    lucide.createIcons();
+}
+
+function pgBtn(text, onClick, disabled, active) {
+    var b = document.createElement('button'); b.className='page-btn'+(active?' active':''); b.textContent=text; b.disabled=!onClick; if(onClick)b.onclick=onClick; return b;
+}
+
+function clearReqFilters() { document.getElementById('reqSearch').value=''; document.getElementById('reqStatus').value=''; reqPage=1; applyReqFilters(); }
+
+function sortReqTable(col) {
+    if (reqSort.col === col) reqSort.dir = reqSort.dir==='asc'?'desc':'asc';
+    else { reqSort.col=col; reqSort.dir='asc'; }
+    document.querySelectorAll('#reqTable thead th .sort-arrow').forEach(function(el){el.textContent='';});
+    var arrow = document.querySelector('#reqTable thead th[data-col="'+col+'"] .sort-arrow');
+    if (arrow) arrow.textContent = reqSort.dir==='asc'?'↑':'↓';
+    applyReqFilters();
+}
+
+// History filters
+var histTickets = [];
+document.querySelectorAll('#histBody tr').forEach(function(row) {
+    if (row.dataset.num) {
+        histTickets.push({
+            num: row.dataset.num,
+            issue: row.dataset.issue,
+            subject: row.dataset.subject,
+            status: row.dataset.status,
+            date: row.dataset.date,
+            scope: row.dataset.scope || '',
+            html: row.outerHTML
+        });
+    }
+});
+
+function debounceHistFilter() { clearTimeout(window._hf); window._hf = setTimeout(applyHistFilters, 250); }
+
+function applyHistFilters() {
+    var search = document.getElementById('histSearch').value.toLowerCase();
+    var status = document.getElementById('histStatus').value;
+    var scope = document.getElementById('histScope').value;
+    var from = document.getElementById('histDateFrom').value;
+    var to = document.getElementById('histDateTo').value;
+    var filtered = histTickets.filter(function(t) {
+        if (search && t.num.indexOf(search)===-1 && t.issue.indexOf(search)===-1 && t.subject.indexOf(search)===-1) return false;
+        if (status && t.status !== status) return false;
+        if (scope && t.scope !== scope) return false;
+        if (from && t.date < from) return false;
+        if (to && t.date > to) return false;
+        return true;
+    });
+    var tbody = document.getElementById('histBody');
+    if (filtered.length === 0) {
+        tbody.innerHTML = '';
+        document.getElementById('histEmpty').style.display = 'block';
+    } else {
+        document.getElementById('histEmpty').style.display = 'none';
+        tbody.innerHTML = filtered.map(function(t){return t.html;}).join('');
+    }
+    document.getElementById('histClear').style.display = (search||status||from||to) ? 'inline-flex' : 'none';
+    lucide.createIcons();
+}
+
+function clearHistFilters() {
+    document.getElementById('histSearch').value = '';
+    document.getElementById('histStatus').value = '';
+    document.getElementById('histDateFrom').value = '';
+    document.getElementById('histDateTo').value = '';
+    applyHistFilters();
+}
+
+function sortHistTable(col) {
+    var key = ['num','issue','subject','status','date'][col];
+    var dir = col === 4 ? 'asc' : 'asc';
+    histTickets.sort(function(a,b) {
+        var va = a[key], vb = b[key];
+        return dir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+    });
+    var tbody = document.getElementById('histBody');
+    tbody.innerHTML = histTickets.map(function(t){return t.html;}).join('');
+    lucide.createIcons();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (reqTickets.length > 0) applyReqFilters();
+});
+
+// Export buttons
+function exportHistoryExcel() {
+    var status = document.getElementById('histStatus').value || '';
+    var scope = document.getElementById('histScope').value || '';
+    var from = document.getElementById('histDateFrom').value || '';
+    var to = document.getElementById('histDateTo').value || '';
+    var url = '/requester/history/export?status=' + encodeURIComponent(status) + '&scope=' + encodeURIComponent(scope) + '&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+    window.location = url;
+}
+
+function exportMyRequestsExcel() {
+    var status = document.getElementById('reqStatus').value || '';
+    var scope = document.getElementById('reqScope').value || '';
+    var url = '/requester/my-requests/export?status=' + encodeURIComponent(status) + '&scope=' + encodeURIComponent(scope);
+    window.location = url;
+}
+</script>
+{% endblock %}

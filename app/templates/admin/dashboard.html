@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard - ACCIO{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+            <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">Admin Dashboard</h1>
+            <p style="font-size:14px;color:var(--text-muted);margin-top:4px;">System overview and key metrics</p>
+        </div>
+        <button class="btn-secondary" onclick="document.getElementById('exportModal').classList.add('active')" style="padding:9px 16px;">
+            <i data-lucide="file-spreadsheet" style="width:16px;height:16px;"></i>
+            Export to Excel
+        </button>
+    </div>
+    <!-- Export Modal -->
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal" style="width:400px;">
+            <h3 class="modal-title">Export Tickets</h3>
+            <p class="modal-desc">Select date range and filters for export.</p>
+            <form method="GET" action="{{ url_for('admin.export_tickets_standard') }}">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                    <div><label class="form-label">From</label><input type="date" name="from" class="form-input"></div>
+                    <div><label class="form-label">To</label><input type="date" name="to" class="form-input"></div>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-input">
+                        <option value="all">All Statuses</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Under Review">Under Review</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                        <option value="Needs Clarification">Needs Clarification</option>
+                        <option value="Sent to Fulfilment">Sent to Fulfilment</option>
+                    </select>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('exportModal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn-primary">Download Excel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid" style="margin-bottom:32px;">
+    <div class="card" style="position:relative;">
+        <i data-lucide="ticket" style="position:absolute;top:20px;right:20px;width:20px;height:20px;color:var(--primary);"></i>
+        <p style="font-size:32px;font-weight:700;color:var(--text);margin:0;">{{ total_tickets }}</p>
+        <p style="font-size:13px;color:var(--text-muted);margin:4px 0 0;">Total Tickets</p>
+    </div>
+    <div class="card" style="position:relative;">
+        <i data-lucide="calendar" style="position:absolute;top:20px;right:20px;width:20px;height:20px;color:var(--primary);"></i>
+        <p style="font-size:32px;font-weight:700;color:var(--text);margin:0;">{{ total_this_month }}</p>
+        <p style="font-size:13px;color:var(--text-muted);margin:4px 0 0;">This Month</p>
+    </div>
+    <div class="card" style="position:relative;">
+        <i data-lucide="clock" style="position:absolute;top:20px;right:20px;width:20px;height:20px;color:#92400e;"></i>
+        <p style="font-size:32px;font-weight:700;color:var(--text);margin:0;">{{ pending }}</p>
+        <p style="font-size:13px;color:var(--text-muted);margin:4px 0 0;">Pending</p>
+    </div>
+    <div class="card" style="position:relative;">
+        <i data-lucide="check-circle" style="position:absolute;top:20px;right:20px;width:20px;height:20px;color:#16a34a;"></i>
+        <p style="font-size:32px;font-weight:700;color:var(--text);margin:0;">{{ approved_this_month }}</p>
+        <p style="font-size:13px;color:var(--text-muted);margin:4px 0 0;">Approved This Month</p>
+    </div>
+</div>
+
+<!-- Recent Tickets -->
+<div class="card" style="padding:0;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <h2 style="font-size:15px;font-weight:600;margin:0;">Recent Tickets</h2>
+        <a href="{{ url_for('req.dashboard') }}" style="font-size:13px;color:var(--primary);text-decoration:none;">View all</a>
+    </div>
+    {% if recent_tickets %}
+    <table>
+        <thead>
+            <tr>
+                <th>Ticket #</th>
+                <th>Raised By</th>
+                <th>Issue Type</th>
+                <th>Status</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in recent_tickets %}
+            <tr onclick="window.location='{{ url_for('req.ticket_detail', ticket_id=ticket.id) }}'">
+                <td><span class="ticket-number">{{ ticket.ticket_number }}</span></td>
+                <td>{{ ticket.creator.display_name }}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ticket.issue_form.name }}</td>
+                <td>
+                    {% set s = ticket.current_status %}
+                    {% if s == 'Pending' %}<span class="badge badge-yellow">Pending</span>
+                    {% elif s == 'Under Review' %}<span class="badge badge-blue">Under Review</span>
+                    {% elif s == 'Approved' %}<span class="badge badge-green">Approved</span>
+                    {% elif s == 'Rejected' %}<span class="badge badge-red">Rejected</span>
+                    {% elif s == 'Needs Clarification' %}<span class="badge badge-orange">Needs Clarification</span>
+                    {% elif s == 'Sent to Fulfilment' %}<span class="badge badge-green">Sent to Fulfilment</span>
+                    {% else %}<span class="badge badge-yellow">{{ s }}</span>{% endif %}
+                </td>
+                <td style="color:var(--text-muted);font-size:13px;">{{ ticket.created_at.strftime('%d %b %Y') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="text-align:center;padding:48px;color:var(--text-muted);">
+        <i data-lucide="inbox" style="width:32px;height:32px;color:var(--text-faint);margin-bottom:8px;"></i>
+        <p style="font-size:14px;">No tickets in the system yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
