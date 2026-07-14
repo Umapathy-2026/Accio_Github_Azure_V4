@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - dev
-      - test
   workflow_dispatch:
 
 jobs:
@@ -39,6 +38,14 @@ jobs:
           # Register Microsoft's package repo and install for real, using apt,
           # on the GitHub Actions runner (unrestricted internet + root here —
           # unlike App Service, which is firewalled with no outbound access).
+          # The ubuntu-22.04 runner image ships with Microsoft's package repo
+          # already pre-registered (for .NET tooling etc.), pointing at a
+          # different keyring path than the one we're about to create. This
+          # causes "Conflicting values set for option Signed-By" if we don't
+          # clear it first.
+          sudo rm -f /etc/apt/sources.list.d/*microsoft*.list /etc/apt/sources.list.d/*mssql*.list
+          sudo find /etc/apt/sources.list.d -name '*.sources' -exec grep -lq 'packages.microsoft.com' {} \; -delete 2>/dev/null || true
+
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
           curl -fsSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update -qq
