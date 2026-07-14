@@ -87,5 +87,5 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'accio-dev'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_DEV }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_1CA050A2D986460DAAF184673179B318 }}
           package: release.zip
