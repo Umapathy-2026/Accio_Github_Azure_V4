@@ -209,13 +209,11 @@ def force_change_password():
         return redirect_to_dashboard()
 
     if request.method == 'POST':
-        current_password = request.form.get('current_password', '')
         new_password     = request.form.get('new_password', '')
         confirm_password = request.form.get('confirm_password', '')
 
-        if not check_password_hash(current_user.password_hash, current_password):
-            flash('Current password is incorrect.', 'error')
-            return render_template('auth/force_change_password.html')
+        # No current_password check here — this is a forced first-login
+        # password change where the user never knew their temporary password.
 
         errors = validate_password_strength(new_password)
         if errors:
