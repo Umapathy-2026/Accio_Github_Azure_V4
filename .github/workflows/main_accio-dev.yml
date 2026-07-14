@@ -38,7 +38,7 @@ jobs:
           # Register Microsoft's package repo and install for real, using apt,
           # on the GitHub Actions runner (unrestricted internet + root here —
           # unlike App Service, which is firewalled with no outbound access).
-          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
           curl -fsSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update -qq
           sudo ACCEPT_EULA=Y apt-get install -y -qq msodbcsql18 unixodbc unixodbc-dev
