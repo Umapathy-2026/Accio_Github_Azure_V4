@@ -31,8 +31,43 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Install and stage msodbcsql18 driver
+        run: |
+          set -e
+
+          # Register Microsoft's package repo and install for real, using apt,
+          # on the GitHub Actions runner (unrestricted internet + root here —
+          # unlike App Service, which is firewalled with no outbound access).
+          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+          curl -fsSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update -qq
+          sudo ACCEPT_EULA=Y apt-get install -y -qq msodbcsql18 unixodbc unixodbc-dev
+
+          # Harvest the actual installed files (real paths, not guessed) so we can
+          # bundle them into the deployment zip and skip installing anything at
+          # App Service runtime.
+          mkdir -p driver_files
+          mkdir -p driver_files/opt/microsoft/msodbcsql18
+          cp -r /opt/microsoft/msodbcsql18/lib64 driver_files/opt/microsoft/msodbcsql18/ 2>/dev/null || \
+            cp -r /opt/microsoft/msodbcsql18/lib driver_files/opt/microsoft/msodbcsql18/lib64
+          mkdir -p driver_files/etc
+          # Rewrite the Driver= path from the build-time location (/opt/microsoft/...)
+          # to where startup.sh actually stages the files at App Service runtime
+          # (/home/msodbc/opt/microsoft/...) — App Service can't write to /opt.
+          sed 's|/opt/microsoft/msodbcsql18|/home/msodbc/opt/microsoft/msodbcsql18|g' \
+            /etc/odbcinst.ini > driver_files/etc/odbcinst.ini
+          mkdir -p driver_files/usr/lib/x86_64-linux-gnu/odbc
+          cp -r /usr/lib/x86_64-linux-gnu/odbc/* driver_files/usr/lib/x86_64-linux-gnu/odbc/ 2>/dev/null || true
+
+          echo "--- Staged driver files ---"
+          find driver_files -type f
+          echo "--- odbcinst.ini contents ---"
+          cat driver_files/etc/odbcinst.ini
+
       - name: Zip application for deployment
         run: |
+          # driver_files/ (bundled ODBC driver) is included by default —
+          # only exclude git/instance/bytecode artifacts as before.
           zip -r release.zip . \
             -x "*.git*" \
             -x "instance/*" \

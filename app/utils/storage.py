@@ -28,8 +28,13 @@ def allowed_file(file):
         mime = magic.from_buffer(header, mime=True)
         if mime not in ALLOWED_MIMES:
             return False, f'File content type {mime} is not permitted.'
-    except ImportError:
-        pass  # fallback to extension-only validation if python-magic not available
+    except (ImportError, OSError) as e:
+        # ImportError: python-magic package not installed.
+        # OSError: package installed but the underlying libmagic1 shared
+        # library isn't present on the system (e.g. App Service without
+        # apt access) — python-magic raises this at import/use time, not
+        # ImportError, so it must be caught here too or uploads 500.
+        current_app.logger.warning("python-magic unavailable (%s); falling back to extension-only validation.", e)
     return True, None
 
 
