@@ -68,7 +68,7 @@ def create_app(testing=False):
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
     app.config['WTF_CSRF_ENABLED'] = True
-    app.config['AZURE_STORAGE_CONNECTION_STRING'] = os.getenv('AZURE_STORAGE_CONNECTION_STRING', '')
+    app.config['AZURE_STORAGE_ACCOUNT_URL'] = os.getenv('AZURE_STORAGE_ACCOUNT_URL', '')
     app.config['AZURE_STORAGE_CONTAINER'] = os.getenv('AZURE_STORAGE_CONTAINER', 'accio-uploads')
 
     # Authentication mode: 'local' (username/password) or 'entra' (Microsoft SSO)
