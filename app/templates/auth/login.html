@@ -3,23 +3,35 @@
 {% set hide_sidebar = True %}
 {% block full_content %}
 <style>
-    body { background: #f0e4d3 !important; }
+    body { background: #efe3d0 !important; }
 
     .login-wrap {
         position: fixed; inset: 0;
         display: flex;
         font-family: 'Inter', sans-serif;
-        background: linear-gradient(150deg, #f3e8d7 0%, #ecdcc6 100%);
+        background: linear-gradient(150deg, #f4ead9 0%, #e9dcc4 100%);
         overflow: auto;
     }
 
     /* ── LEFT: brand panel with clay blobs + logo ── */
     .login-left { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; }
-    .blob { position: absolute; filter: drop-shadow(6px 8px 14px rgba(176,140,92,0.28)); animation: blob-float 14s ease-in-out infinite; }
-    .blob.b1 { width: 30vw; max-width: 380px; height: 26vw; max-height: 320px; top: -6%; left: -4%; background: #ead0ab; border-radius: 60% 40% 55% 45% / 55% 55% 45% 45%; }
-    .blob.b2 { width: 12vw; max-width: 160px; height: 12vw; max-height: 160px; bottom: 14%; left: -3%; background: #ef9a52; border-radius: 50%; animation-delay: -4s; }
-    .blob.b3 { width: 7vw; max-width: 90px; height: 7vw; max-height: 90px; top: 14%; left: 26%; background: #f6e6d0; border-radius: 50%; box-shadow: -6px -6px 12px rgba(255,255,255,0.7) inset, 4px 4px 10px rgba(176,140,92,0.25) inset; animation-delay: -8s; }
-    .blob.b4 { width: 20vw; max-width: 250px; height: 16vw; max-height: 200px; bottom: -8%; left: 12%; background: #f4e7d4; border-radius: 50% 50% 45% 55% / 60% 55% 45% 40%; animation-delay: -6s; }
+    .blob { position: absolute; animation: blob-float 14s ease-in-out infinite; }
+    .blob.b1 { width: 30vw; max-width: 380px; height: 26vw; max-height: 320px; top: -6%; left: -4%;
+        background: linear-gradient(145deg, #f6e0bb 0%, #ead0ab 60%, #dcb583 100%);
+        border-radius: 60% 40% 55% 45% / 55% 55% 45% 45%;
+        box-shadow: 24px 32px 60px -10px rgba(163,120,72,0.35), inset -10px -10px 20px rgba(163,120,72,0.20), inset 10px 10px 20px rgba(255,255,255,0.55); }
+    .blob.b2 { width: 12vw; max-width: 160px; height: 12vw; max-height: 160px; bottom: 14%; left: -3%;
+        background: linear-gradient(145deg, #f7b784 0%, #ef9a52 55%, #d97f30 100%);
+        border-radius: 50%; animation-delay: -4s;
+        box-shadow: 24px 32px 60px -10px rgba(163,90,40,0.38), inset -8px -8px 16px rgba(140,60,10,0.28), inset 8px 8px 16px rgba(255,230,200,0.55); }
+    .blob.b3 { width: 7vw; max-width: 90px; height: 7vw; max-height: 90px; top: 14%; left: 26%;
+        background: linear-gradient(145deg, #fdf6ea 0%, #f6e6d0 60%, #ecd6b4 100%);
+        border-radius: 50%; animation-delay: -8s;
+        box-shadow: 18px 24px 44px -10px rgba(163,120,72,0.28), inset -6px -6px 12px rgba(163,120,72,0.22), inset 6px 6px 12px rgba(255,255,255,0.80); }
+    .blob.b4 { width: 20vw; max-width: 250px; height: 16vw; max-height: 200px; bottom: -8%; left: 12%;
+        background: linear-gradient(145deg, #fbf1de 0%, #f4e7d4 55%, #e6d2ac 100%);
+        border-radius: 50% 50% 45% 55% / 60% 55% 45% 40%; animation-delay: -6s;
+        box-shadow: 24px 30px 56px -10px rgba(163,120,72,0.30), inset -8px -8px 16px rgba(163,120,72,0.18), inset 8px 8px 16px rgba(255,255,255,0.70); }
     @keyframes blob-float { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(14px,-16px) scale(1.04); } }
 
     .login-logo { position: relative; z-index: 2; width: 68%; max-width: 460px; filter: drop-shadow(5px 8px 6px rgba(120,90,50,0.26)); animation: logo-enter 800ms cubic-bezier(0.16,1,0.3,1) both; }
@@ -28,8 +40,8 @@
 
     /* ── RIGHT: clay login card ── */
     .login-right { width: 520px; max-width: 46vw; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .login-card { background: #faf4ea; border-radius: 34px; padding: 48px 44px; width: 100%; max-width: 380px;
-        box-shadow: 10px 12px 30px rgba(176,140,92,0.32), -10px -10px 24px rgba(255,255,255,0.85), 1px 1px 2px rgba(255,255,255,0.6) inset, -2px -2px 8px rgba(176,140,92,0.10) inset;
+    .login-card { background: linear-gradient(145deg, #fdf8f0 0%, #f6ecdc 100%); border-radius: 34px; padding: 48px 44px; width: 100%; max-width: 380px;
+        box-shadow: 26px 32px 64px -10px rgba(163,120,72,0.45), inset -8px -8px 16px rgba(163,120,72,0.18), inset 8px 8px 16px rgba(255,255,255,0.92);
         animation: logo-enter 800ms cubic-bezier(0.16,1,0.3,1) both; animation-delay: 120ms; }
     .login-card h1 { font-size: 30px; font-weight: 900; color: #2c2622; letter-spacing: -0.02em; margin: 0; }
     .login-card .subtitle { font-size: 14px; color: #8f8474; margin: 8px 0 30px; }
@@ -37,23 +49,24 @@
     .clay-label { display: block; font-size: 13px; font-weight: 700; color: #2c2622; margin-bottom: 8px; }
     .clay-field { position: relative; }
     .clay-field .lead-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #8f8474; pointer-events: none; }
-    .clay-input { width: 100%; padding: 15px 16px 15px 48px; border-radius: 16px; border: none; background: #f7efe2;
+    .clay-input { width: 100%; padding: 15px 16px 15px 48px; border-radius: 18px; border: none;
+        background: linear-gradient(145deg, #efdcc0 0%, #f9f1e4 100%);
         font-size: 14.5px; color: #2c2622; outline: none; font-family: 'Inter', sans-serif;
-        box-shadow: 4px 4px 10px rgba(176,140,92,0.30) inset, -4px -4px 10px rgba(255,255,255,0.85) inset; }
+        box-shadow: inset 6px 8px 14px rgba(163,120,72,0.30), inset -4px -6px 10px rgba(255,255,255,0.85); }
     .clay-input::placeholder { color: #a89e8e; }
-    .clay-input:focus { box-shadow: 4px 4px 10px rgba(176,140,92,0.30) inset, -4px -4px 10px rgba(255,255,255,0.85) inset, 0 0 0 3px #fbe9d5; }
+    .clay-input:focus { box-shadow: inset 6px 8px 14px rgba(163,120,72,0.30), inset -4px -6px 10px rgba(255,255,255,0.85), 0 0 0 3px #fbe9d5; }
 
-    .clay-btn { width: 100%; background: linear-gradient(150deg, #f5a248 0%, #e07a1a 100%); color: #fff; border: none;
-        padding: 16px; border-radius: 16px; font-size: 16px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif;
-        box-shadow: 6px 6px 16px rgba(180,95,20,0.38), -5px -5px 14px rgba(255,220,180,0.50), 2px 2px 3px rgba(255,255,255,0.35) inset, -3px -3px 8px rgba(150,70,10,0.28) inset;
-        text-shadow: 0 1px 2px rgba(150,70,10,0.35); transition: transform 160ms ease; }
+    .clay-btn { width: 100%; background: linear-gradient(160deg, #f9b25f 0%, #f0902e 45%, #dd6f12 100%); color: #fff; border: none;
+        padding: 16px; border-radius: 18px; font-size: 16px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif;
+        box-shadow: 10px 14px 28px -4px rgba(190,100,20,0.55), inset -5px -8px 14px rgba(150,60,5,0.40), inset 5px 8px 14px rgba(255,235,200,0.70);
+        text-shadow: 0 1px 2px rgba(150,70,10,0.35); transition: transform 160ms ease, box-shadow 160ms ease; }
     .clay-btn:hover { transform: translateY(-1px); }
-    .clay-btn:active { transform: translateY(1px); }
+    .clay-btn:active { transform: translateY(1px); box-shadow: inset -6px -10px 18px rgba(150,60,5,0.55), inset 6px 10px 18px rgba(255,235,200,0.40); }
 
     .ms-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
-        background: #f7efe2; color: #2c2622; border: none; padding: 15px; border-radius: 16px; font-size: 15px; font-weight: 700;
+        background: linear-gradient(145deg, #fdf8f0 0%, #f7efe2 100%); color: #2c2622; border: none; padding: 15px; border-radius: 18px; font-size: 15px; font-weight: 700;
         cursor: pointer; text-decoration: none; font-family: 'Inter', sans-serif;
-        box-shadow: 4px 4px 12px rgba(176,140,92,0.28), -4px -4px 12px rgba(255,255,255,0.80); transition: transform 160ms ease; }
+        box-shadow: 16px 20px 40px -10px rgba(163,120,72,0.35), inset -6px -6px 12px rgba(163,120,72,0.16), inset 6px 6px 12px rgba(255,255,255,0.85); transition: transform 160ms ease; }
     .ms-btn:hover { transform: translateY(-1px); }
 
     .clay-link { color: #e07a1a; font-weight: 700; text-decoration: none; }
