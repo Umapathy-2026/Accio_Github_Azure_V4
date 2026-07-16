@@ -182,9 +182,9 @@
             align-items:center; justify-content:space-between; padding:0 24px;
             box-shadow: 0 4px 16px rgba(176,140,92,0.12); }
         .header-logo { text-decoration:none; display:flex; align-items:center; gap:10px; }
-        .header-logo .logo-chip { width:44px; height:44px; border-radius:12px; background:var(--surface-2); padding:5px;
+        .header-logo .logo-chip { height:40px; width:auto; border-radius:12px; background:var(--surface-2); padding:5px 10px;
             display:flex; align-items:center; justify-content:center; box-shadow: var(--clay-raised-sm); flex-shrink:0; }
-        .header-logo .logo-chip img { max-width:100%; max-height:100%; object-fit:contain; }
+        .header-logo .logo-chip img { height:100%; width:auto; object-fit:contain; }
         .header-right { display:flex; align-items:center; gap:10px; }
         .role-badge { font-size:12px; font-weight:700; padding:5px 14px; border-radius:9999px;
             background: linear-gradient(150deg,#f5a248,#e07a1a); color:#fff; text-transform:capitalize;
@@ -306,7 +306,7 @@
     {% if not hide_sidebar %}
     <header class="header">
         <a href="{% if current_user.role == 'admin' %}{{ url_for('admin.dashboard') }}{% elif current_user.role == 'approver' %}{{ url_for('appr.queue') }}{% else %}{{ url_for('req.dashboard') }}{% endif %}" class="header-logo">
-            <span class="logo-chip"><img src="{{ url_for('static', filename='logo_login.png') }}" alt="ACCIO"></span>
+            <span class="logo-chip"><img src="{{ url_for('static', filename='logo_je_header.png') }}" alt="Johnson Electric"></span>
             <span style="font-size:19px;font-weight:800;color:var(--primary-dark);letter-spacing:-0.02em;">ACCIO</span>
         </a>
         <div class="header-right">
