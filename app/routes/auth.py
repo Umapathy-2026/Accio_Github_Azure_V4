@@ -262,16 +262,23 @@ def entra_login():
         flash('Microsoft SSO is not configured. Please contact your administrator.', 'error')
         return redirect(url_for('auth.login'))
 
-    state = secrets.token_urlsafe(16)
-    session['entra_state'] = state
+    try:
+        state = secrets.token_urlsafe(16)
+        session['entra_state'] = state
 
-    cca = _build_msal_app()
-    auth_url = cca.get_authorization_request_url(
-        scopes=current_app.config['ENTRA_SCOPES'],
-        redirect_uri=current_app.config['ENTRA_REDIRECT_URI'],
-        state=state
-    )
-    return redirect(auth_url)
+        cca = _build_msal_app()
+        auth_url = cca.get_authorization_request_url(
+            scopes=current_app.config['ENTRA_SCOPES'],
+            redirect_uri=current_app.config['ENTRA_REDIRECT_URI'],
+            state=state
+        )
+        return redirect(auth_url)
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f'ENTRA LOGIN ERROR: {type(e).__name__}: {e}')
+        current_app.logger.error(traceback.format_exc())
+        current_app.logger.error(f'Config: CLIENT_ID={current_app.config.get("ENTRA_CLIENT_ID")}, TENANT_ID={current_app.config.get("ENTRA_TENANT_ID")}, SECRET_LEN={len(current_app.config.get("ENTRA_CLIENT_SECRET", ""))}')
+        raise
 
 
 @auth_bp.route('/entra/callback')
