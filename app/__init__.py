@@ -39,7 +39,7 @@ def create_app(testing=False):
     is_production = os.getenv('FLASK_ENV') == 'production'
     app.config['SESSION_COOKIE_SECURE'] = is_production
     app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None' if is_production else 'Lax'
     app.config['REMEMBER_COOKIE_SECURE'] = is_production
     app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 
