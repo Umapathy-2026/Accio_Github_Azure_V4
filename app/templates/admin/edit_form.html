@@ -83,7 +83,7 @@ function renderFields(){
     var req = required ? '<span class="badge badge-yellow" style="margin-left:8px;">Required</span>' : '';
     return '<div class="field-row" style="background:var(--surface);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:8px;padding:14px 16px;border:1px solid var(--border);margin-bottom:8px;">'
       + '<div style="display:flex;align-items:center;gap:8px;">'
-      + '<i data-lucide="lock" style="width:14px;height:14px;color:#6b6a68;"></i>'
+      + '<i data-lucide="lock" style="width:14px;height:14px;color:var(--text-muted);"></i>'
       + '<div style="font-weight:600;">'+ escapeHtml(label) +'</div>'
       + '<span style="font-size:12px;color:var(--text-muted);">('+ type +')</span>' + req
       + '<span class="badge" style="margin-left:auto;background:var(--surface-2);color:var(--text-muted);">Protected</span>'
@@ -119,7 +119,7 @@ function customRow(f, idx){
   }
   return '<div class="custom-item" draggable="true" data-idx="'+idx+'" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;">'
     + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
-    + '<i data-lucide="grip-vertical" style="width:14px;height:14px;color:#b0afa9;cursor:grab;"></i>'
+    + '<i data-lucide="grip-vertical" style="width:14px;height:14px;color:var(--text-muted);cursor:grab;"></i>'
     + '<input class="form-input" style="flex:1;" placeholder="Label" value="'+ escapeAttr(f.label || '') +'" oninput="updateCustom('+idx+',\'label\', this.value)">'
     + '<select class="form-input" style="width:160px;" onchange="updateCustom('+idx+',\'type\', this.value)">'
       + types.map(function(t){ return '<option value="'+t+'"'+(f.type===t?' selected':'')+'>'+t.charAt(0).toUpperCase()+t.slice(1)+'</option>'; }).join('')
