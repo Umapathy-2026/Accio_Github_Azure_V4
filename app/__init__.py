@@ -39,7 +39,7 @@ def create_app(testing=False):
     is_production = os.getenv('FLASK_ENV') == 'production'
     app.config['SESSION_COOKIE_SECURE'] = is_production
     app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None' if is_production else 'Lax'
     app.config['REMEMBER_COOKIE_SECURE'] = is_production
     app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 
@@ -68,7 +68,7 @@ def create_app(testing=False):
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
     app.config['WTF_CSRF_ENABLED'] = True
-    app.config['AZURE_STORAGE_CONNECTION_STRING'] = os.getenv('AZURE_STORAGE_CONNECTION_STRING', '')
+    app.config['AZURE_STORAGE_ACCOUNT_URL'] = os.getenv('AZURE_STORAGE_ACCOUNT_URL', '')
     app.config['AZURE_STORAGE_CONTAINER'] = os.getenv('AZURE_STORAGE_CONTAINER', 'accio-uploads')
 
     # Authentication mode: 'local' (username/password) or 'entra' (Microsoft SSO)
@@ -77,7 +77,7 @@ def create_app(testing=False):
     app.config['ENTRA_CLIENT_SECRET'] = os.getenv('ENTRA_CLIENT_SECRET', '')
     app.config['ENTRA_TENANT_ID']     = os.getenv('ENTRA_TENANT_ID', '')
     app.config['ENTRA_REDIRECT_URI']  = os.getenv('ENTRA_REDIRECT_URI', '')
-    app.config['ENTRA_SCOPES']        = ['User.Read', 'openid', 'profile', 'email']
+    app.config['ENTRA_SCOPES']        = ['User.Read']
 
     # Email: set MAIL_DEV_MODE=true to log emails to App Service log stream
     # instead of sending them — useful when SMTP is not yet configured
