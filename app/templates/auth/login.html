@@ -13,12 +13,12 @@
         overflow: auto;
     }
 
-    /* ── LEFT: the actual reference image, cropped ── */
+    /* ── LEFT: the reference image, filling exactly half the screen ── */
     .login-left {
-        flex: 1.55; min-width: 0; position: relative;
+        flex: 1; min-width: 0; position: relative;
         background-image: url('{{ url_for('static', filename='clay/login_left_panel.png') }}');
         background-size: cover;
-        background-position: right center;
+        background-position: center;
         background-repeat: no-repeat;
     }
 
@@ -112,6 +112,7 @@
 
             {% endif %}
 
+            {% if auth_mode != 'entra' %}
             <p style="text-align:center;font-size:14px;margin-top:22px;">
                 <a href="{{ url_for('auth.forgot_password') }}" class="clay-link">Forgot your password?</a>
             </p>
@@ -119,6 +120,7 @@
                 <i data-lucide="info" style="width:14px;height:14px;"></i>
                 Local development environment
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
