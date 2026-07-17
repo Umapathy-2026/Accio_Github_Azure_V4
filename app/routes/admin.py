@@ -727,6 +727,7 @@ def export_tickets_standard():
     log_admin_action('EXPORT_TRIGGERED', 'ticket', None,
                      {'view': 'all_tickets', 'status': status, 'scope': scope,
                       'from': created_from, 'to': created_to, 'count': len(tickets)})
+    db.session.commit()
 
     wb = _export_build_workbook(tickets)
     output = io.BytesIO()

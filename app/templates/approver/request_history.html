@@ -96,15 +96,15 @@
     <div class="pagination-info">Page {{ pagination.page }} of {{ pagination.pages }}</div>
     <div class="pagination-controls">
         {% if pagination.has_prev %}
-        <a class="page-btn" href="{{ url_for('appr.request_history', page=pagination.prev_num, status=filters.status if filters else '', scope=filters.scope if filters else '', **({'from': filters.from} if filters and filters.from else {}), **({'to': filters.to} if filters and filters.to else {})) }}">‹</a>
+        <a class="page-btn" href="{{ url_for('appr.request_history', page=pagination.prev_num, status=filters.status if filters else '', scope=filters.scope if filters else '', from=filters.from if filters else '', to=filters.to if filters else '') }}">‹</a>
         {% else %}
         <button class="page-btn" disabled>‹</button>
         {% endif %}
         {% for p in range(1, pagination.pages + 1) %}
-        <a class="page-btn{% if p == pagination.page %} active{% endif %}" href="{{ url_for('appr.request_history', page=p, status=filters.status if filters else '', scope=filters.scope if filters else '', **({'from': filters.from} if filters and filters.from else {}), **({'to': filters.to} if filters and filters.to else {})) }}">{{ p }}</a>
+        <a class="page-btn{% if p == pagination.page %} active{% endif %}" href="{{ url_for('appr.request_history', page=p, status=filters.status if filters else '', scope=filters.scope if filters else '', from=filters.from if filters else '', to=filters.to if filters else '') }}">{{ p }}</a>
         {% endfor %}
         {% if pagination.has_next %}
-        <a class="page-btn" href="{{ url_for('appr.request_history', page=pagination.next_num, status=filters.status if filters else '', scope=filters.scope if filters else '', **({'from': filters.from} if filters and filters.from else {}), **({'to': filters.to} if filters and filters.to else {})) }}">›</a>
+        <a class="page-btn" href="{{ url_for('appr.request_history', page=pagination.next_num, status=filters.status if filters else '', scope=filters.scope if filters else '', from=filters.from if filters else '', to=filters.to if filters else '') }}">›</a>
         {% else %}
         <button class="page-btn" disabled>›</button>
         {% endif %}
