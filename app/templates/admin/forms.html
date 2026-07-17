@@ -92,13 +92,17 @@
                     </select>
                 </div>
                 <div>
-                    <label class="form-label" for="new_form_category">Category (optional)</label>
-                    <select id="new_form_category" name="category_id" class="form-input">
-                        <option value="">None</option>
+                    <label class="form-label" for="new_form_category">Category <span style="color:#dc2626;">*</span></label>
+                    <select id="new_form_category" name="category_id" class="form-input" required>
+                        <option value="" disabled selected>Select category...</option>
                         {% for c in active_categories %}
                         <option value="{{ c.id }}" data-scope="{{ c.scope_id }}">{{ c.name }}</option>
                         {% endfor %}
                     </select>
+                    <button type="button" class="btn-secondary" id="manageCategoriesBtn" style="margin-top:8px;padding:4px 10px;font-size:12px;" onclick="openManageCategoriesModal()">
+                        <i data-lucide="tags" style="width:12px;height:12px;"></i>
+                        Manage Categories
+                    </button>
                 </div>
             </div>
             <div style="margin-bottom:16px;">
@@ -114,6 +118,106 @@
             </div>
         </form>
     </div>
+</div>
+
+<!-- Manage Categories Modal -->
+<div class="modal-overlay" id="manageCategoriesModal">
+  <div class="modal" style="width:520px;">
+    <h3 class="modal-title">Manage Categories</h3>
+    <p class="modal-desc" id="manageCategoriesScopeLabel">Categories for the selected scope</p>
+
+    <div id="manageCategoriesNoScope" style="display:none;text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px;">
+        Please select a Scope in the Create Form modal first.
+    </div>
+
+    <div id="manageCategoriesContent">
+        <div style="max-height:260px;overflow-y:auto;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;">
+            {% for s in active_scopes %}
+            <div class="cat-scope-group" data-scope="{{ s.id }}" style="display:none;">
+                {% set items = categories | selectattr('scope_id', 'equalto', s.id) | list %}
+                {% for c in items %}
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:13px;font-weight:500;">{{ c.name }}</span>
+                        {% if c.is_active %}
+                        <span class="badge badge-green">Active</span>
+                        {% else %}
+                        <span class="badge badge-red">Inactive</span>
+                        {% endif %}
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                        <button type="button" class="btn-secondary" style="padding:3px 8px;font-size:11px;" onclick='openEditCategoryModal({{ c.id }}, {{ c.name|tojson }})'>
+                            <i data-lucide="edit" style="width:11px;height:11px;"></i>
+                        </button>
+                        <form method="POST" action="{{ url_for('admin.toggle_category', category_id=c.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-secondary" style="padding:3px 8px;font-size:11px;">
+                                {% if c.is_active %}<i data-lucide="pause" style="width:11px;height:11px;"></i>{% else %}<i data-lucide="play" style="width:11px;height:11px;"></i>{% endif %}
+                            </button>
+                        </form>
+                        <button type="button" class="btn-danger" style="padding:3px 8px;font-size:11px;" onclick='openDeleteCategoryModal({{ c.id }}, {{ c.name|tojson }})'>
+                            <i data-lucide="trash-2" style="width:11px;height:11px;"></i>
+                        </button>
+                    </div>
+                </div>
+                {% else %}
+                <div style="text-align:center;padding:16px;color:var(--text-muted);font-size:13px;">No categories under this scope yet.</div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.create_category') }}" style="display:flex;gap:8px;align-items:flex-end;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="scope_id" id="manage_cat_scope_id" value="">
+            <div style="flex:1;">
+                <label class="form-label" for="manage_cat_name">New category name</label>
+                <input type="text" id="manage_cat_name" name="name" class="form-input" placeholder="e.g., Payment, Reconciliation" required>
+            </div>
+            <button type="submit" class="btn-primary" style="padding:10px 14px;">
+                <i data-lucide="plus" style="width:14px;height:14px;"></i>
+                Add
+            </button>
+        </form>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('manageCategoriesModal').classList.remove('active')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Category Modal -->
+<div class="modal-overlay" id="editCategoryModal">
+  <div class="modal" style="width:420px;">
+    <h3 class="modal-title">Edit Category</h3>
+    <form method="POST" id="editCategoryForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="margin-bottom:16px;">
+        <label class="form-label" for="edit_cat_name">Name</label>
+        <input type="text" id="edit_cat_name" name="name" class="form-input" required>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('editCategoryModal').classList.remove('active')">Cancel</button>
+        <button type="submit" class="btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete Category Modal -->
+<div class="modal-overlay" id="deleteCategoryModal">
+  <div class="modal" style="width:420px;">
+    <h3 class="modal-title">Delete Category</h3>
+    <p class="modal-desc" id="deleteCategoryDesc">Are you sure?</p>
+    <form method="POST" id="deleteCategoryForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('deleteCategoryModal').classList.remove('active')">Cancel</button>
+        <button type="submit" class="btn-danger">Delete</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- Delete Form Modal -->
@@ -167,6 +271,49 @@ function openDeleteFormModal(id, name) {
     var f = document.getElementById('deleteFormForm');
     f.action = '/admin/forms/' + id + '/delete';
     document.getElementById('deleteFormModal').classList.add('active');
+}
+
+// Manage Categories modal
+var scopeNames = {};
+{% for s in active_scopes %}
+scopeNames['{{ s.id }}'] = {{ s.name|tojson }};
+{% endfor %}
+
+function openManageCategoriesModal() {
+    var scopeSel = document.getElementById('new_form_scope');
+    var sid = scopeSel ? scopeSel.value : '';
+    var noScope = document.getElementById('manageCategoriesNoScope');
+    var content = document.getElementById('manageCategoriesContent');
+    var label = document.getElementById('manageCategoriesScopeLabel');
+
+    if (!sid) {
+        noScope.style.display = 'block';
+        content.style.display = 'none';
+        label.textContent = 'Select a scope first';
+    } else {
+        noScope.style.display = 'none';
+        content.style.display = 'block';
+        label.textContent = 'Categories for ' + (scopeNames[sid] || 'selected scope');
+        document.querySelectorAll('.cat-scope-group').forEach(function(g) {
+            g.style.display = (g.getAttribute('data-scope') === sid) ? 'block' : 'none';
+        });
+        document.getElementById('manage_cat_scope_id').value = sid;
+    }
+    document.getElementById('manageCategoriesModal').classList.add('active');
+}
+
+function openEditCategoryModal(id, name) {
+    document.getElementById('edit_cat_name').value = name;
+    var f = document.getElementById('editCategoryForm');
+    f.action = '/admin/categories/' + id + '/edit';
+    document.getElementById('editCategoryModal').classList.add('active');
+}
+
+function openDeleteCategoryModal(id, name) {
+    document.getElementById('deleteCategoryDesc').innerHTML = 'Are you sure? This category will be permanently deleted. <br><br><strong>' + name + '</strong>';
+    var f = document.getElementById('deleteCategoryForm');
+    f.action = '/admin/categories/' + id + '/delete';
+    document.getElementById('deleteCategoryModal').classList.add('active');
 }
 </script>
 {% endblock %}
