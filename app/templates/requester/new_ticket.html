@@ -162,28 +162,28 @@
         (data.fields || []).forEach(function(field){
           var required = field.required ? ' <span style="color:#dc2626;">*</span>' : '';
           html += '<div style="margin-bottom:20px;">';
-          html += '<label class="form-label" for="field-' + field.name + '">' + field.label + required + '</label>';
+          html += '<label class="form-label" for="field-' + field.id + '">' + field.label + required + '</label>';
           if (field.type === 'text' || field.type === 'email') {
-            html += '<input type="' + field.type + '" id="field-' + field.name + '" name="' + field.name + '" class="form-input" placeholder="' + field.label + '"' + (field.required ? ' required' : '') + '>';
+            html += '<input type="' + field.type + '" id="field-' + field.id + '" name="' + field.id + '" class="form-input" placeholder="' + field.label + '"' + (field.required ? ' required' : '') + '>';
           } else if (field.type === 'number') {
-            html += '<input type="number" id="field-' + field.name + '" name="' + field.name + '" class="form-input" placeholder="0.00" step="0.01"' + (field.required ? ' required' : '') + '>';
+            html += '<input type="number" id="field-' + field.id + '" name="' + field.id + '" class="form-input" placeholder="0.00" step="0.01"' + (field.required ? ' required' : '') + '>';
           } else if (field.type === 'date') {
-            html += '<input type="date" id="field-' + field.name + '" name="' + field.name + '" class="form-input"' + (field.required ? ' required' : '') + '>';
+            html += '<input type="date" id="field-' + field.id + '" name="' + field.id + '" class="form-input"' + (field.required ? ' required' : '') + '>';
           } else if (field.type === 'dropdown') {
-            html += '<select id="field-' + field.name + '" name="' + field.name + '" class="form-input"' + (field.required ? ' required' : '') + '>';
+            html += '<select id="field-' + field.id + '" name="' + field.id + '" class="form-input"' + (field.required ? ' required' : '') + '>';
             html += '<option value="">Select ' + field.label + '...</option>';
             if (field.options) { field.options.forEach(function(opt){ html += '<option value="' + opt + '">' + opt + '</option>'; }); }
             html += '</select>';
           } else if (field.type === 'file') {
-            html += '<div class="file-upload" onclick="document.getElementById(\'file-' + field.name + '\').click()">';
+            html += '<div class="file-upload" onclick="document.getElementById(\'file-' + field.id + '\').click()">';
             html += '<i data-lucide="paperclip" style="width:16px;height:16px;color:var(--text-muted);margin-bottom:4px;"></i>';
-            html += '<p style="font-size:13px;color:var(--text-muted);margin:0;"><span id="file-name-' + field.name + '" style="color:var(--text-faint);">Click to upload</span></p>';
+            html += '<p style="font-size:13px;color:var(--text-muted);margin:0;"><span id="file-name-' + field.id + '" style="color:var(--text-faint);">Click to upload</span></p>';
             html += '</div>';
-            html += '<input type="file" id="file-' + field.name + '" name="' + field.name + '" style="display:none;" onchange="document.getElementById(\'file-name-' + field.name + '\').textContent=this.files&&this.files[0]?this.files[0].name:\'Click to upload\';document.getElementById(\'file-name-' + field.name + '\').style.color=this.files&&this.files[0]?\'var(--text)\':\'var(--text-faint)\'">';
+            html += '<input type="file" id="file-' + field.id + '" name="' + field.id + '" style="display:none;" onchange="document.getElementById(\'file-name-' + field.id + '\').textContent=this.files&&this.files[0]?this.files[0].name:\'Click to upload\';document.getElementById(\'file-name-' + field.id + '\').style.color=this.files&&this.files[0]?\'var(--text)\':\'var(--text-faint)\'">';
           } else if (field.type === 'textarea') {
-            html += '<textarea id="field-' + field.name + '" name="' + field.name + '" class="form-input" placeholder="' + field.label + '" rows="4"' + (field.required ? ' required' : '') + '></textarea>';
+            html += '<textarea id="field-' + field.id + '" name="' + field.id + '" class="form-input" placeholder="' + field.label + '" rows="4"' + (field.required ? ' required' : '') + '></textarea>';
           } else {
-            html += '<input type="text" id="field-' + field.name + '" name="' + field.name + '" class="form-input" placeholder="' + field.label + '"' + (field.required ? ' required' : '') + '>';
+            html += '<input type="text" id="field-' + field.id + '" name="' + field.id + '" class="form-input" placeholder="' + field.label + '"' + (field.required ? ' required' : '') + '>';
           }
           html += '</div>';
         });
