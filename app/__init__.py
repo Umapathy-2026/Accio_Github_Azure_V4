@@ -77,7 +77,7 @@ def create_app(testing=False):
     app.config['ENTRA_CLIENT_SECRET'] = os.getenv('ENTRA_CLIENT_SECRET', '')
     app.config['ENTRA_TENANT_ID']     = os.getenv('ENTRA_TENANT_ID', '')
     app.config['ENTRA_REDIRECT_URI']  = os.getenv('ENTRA_REDIRECT_URI', '')
-    app.config['ENTRA_SCOPES']        = ['User.Read', 'openid', 'profile', 'email']
+    app.config['ENTRA_SCOPES']        = ['User.Read']
 
     # Email: set MAIL_DEV_MODE=true to log emails to App Service log stream
     # instead of sending them — useful when SMTP is not yet configured
