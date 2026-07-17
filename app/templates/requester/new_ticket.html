@@ -45,7 +45,7 @@
     <!-- Step 3: Form selection (searchable) -->
     <div id="formStep" style="margin-bottom:20px;display:none;">
       <label class="form-label" for="form_id">Request Type <span style="color:#dc2626;">*</span></label>
-      <select id="form_id" name="form_id" class="form-input" required placeholder="Select a request type..."></select>
+      <select id="form_id" name="form_id" class="form-input" placeholder="Select a request type..."></select>
     </div>
 
     <!-- Dynamic fields -->
@@ -198,6 +198,24 @@
     var autoScope = document.getElementById('scope_id');
     if (autoScope && autoScope.value) { loadCategories(autoScope.value); }
     lucide.createIcons();
+  });
+
+  // Manual validation: the Scope button-group value and the TomSelect-wrapped
+  // Request Type <select> are hidden/unfocusable, so native HTML5 "required"
+  // validation silently blocks submission on some browsers. Validate manually instead.
+  document.getElementById('newTicketForm').addEventListener('submit', function(e){
+    var scopeInput = document.getElementById('scope_id');
+    if (!scopeInput || !scopeInput.value) {
+      e.preventDefault();
+      if (typeof toast !== 'undefined') toast.error('', 'Please select a scope.');
+      return;
+    }
+    var formSel = document.getElementById('form_id');
+    if (!formSel || !formSel.value) {
+      e.preventDefault();
+      if (typeof toast !== 'undefined') toast.error('', 'Please select a request type.');
+      return;
+    }
   });
 </script>
 {% endblock %}
