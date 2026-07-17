@@ -12,3 +12,4 @@ gunicorn==22.0.0
 pyodbc==5.2.0
 azure-storage-blob==12.19.0
 python-magic==0.4.27
+azure-identity==1.19.0

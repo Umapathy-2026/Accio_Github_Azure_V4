@@ -3,396 +3,134 @@
 {% set hide_sidebar = True %}
 {% block full_content %}
 <style>
-    /* ── Override base body background for login page ── */
-    body { background: #0a0e1a !important; }
+    body { background: #FBF2E7 !important; }
 
-    /* ── Login split-screen container ── */
-    .login-body {
-        margin: 0;
-        padding: 0;
-        min-height: 100vh;
+    .login-wrap {
+        position: fixed; inset: 0;
+        display: flex;
         font-family: 'Inter', sans-serif;
-        overflow-x: hidden;
-        overflow-y: auto;
-        position: relative;
-        background: #0a0e1a;
-        display: flex;
+        background: #FBF2E7;
+        overflow: auto;
     }
 
-    /* ── Animated gradient background (gives backdrop-filter something to catch) ── */
-    .login-bg {
-        position: fixed;
-        inset: 0;
-        z-index: 0;
-        background:
-            radial-gradient(ellipse 80% 60% at 20% 30%, rgba(1,105,111,0.65) 0%, transparent 60%),
-            radial-gradient(ellipse 70% 50% at 80% 70%, rgba(8,145,178,0.55) 0%, transparent 60%),
-            radial-gradient(ellipse 60% 50% at 50% 50%, rgba(20,184,166,0.40) 0%, transparent 70%),
-            radial-gradient(ellipse 50% 40% at 30% 80%, rgba(6,182,212,0.30) 0%, transparent 60%),
-            #0e1830;
-        background-size: 200% 200%, 200% 200%, 200% 200%, 200% 200%, 100% 100%;
-        animation: bg-shift 18s ease-in-out infinite alternate;
-    }
-    @keyframes bg-shift {
-        0%   { background-position: 0% 0%, 100% 100%, 50% 50%, 0 0; }
-        100% { background-position: 40% 30%, 60% 70%, 70% 30%, 0 0; }
+    /* ── LEFT: the reference image, filling exactly half the screen ── */
+    .login-left {
+        flex: 1; min-width: 0; position: relative;
+        background-image: url('{{ url_for('static', filename='clay/login_left_panel.png') }}');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
     }
 
-    /* ── Floating blurred orbs for extra depth ── */
-    .orb {
-        position: fixed;
-        border-radius: 50%;
-        filter: blur(80px);
-        opacity: 0.45;
-        z-index: 0;
-        pointer-events: none;
-        animation: orb-float 22s ease-in-out infinite;
-    }
-    .orb-1 { width: 480px; height: 480px; background: #01696f; top: -100px; left: -100px; opacity: 0.55; }
-    .orb-2 { width: 380px; height: 380px; background: #0891b2; bottom: -60px; right: -60px; animation-delay: -7s; opacity: 0.55; }
-    .orb-3 { width: 320px; height: 320px; background: #06b6d4; top: 40%; left: 55%; animation-delay: -14s; opacity: 0.50; }
-    @keyframes orb-float {
-        0%, 100% { transform: translate(0, 0) scale(1); }
-        33%      { transform: translate(40px, -30px) scale(1.12); }
-        66%      { transform: translate(-25px, 25px) scale(0.92); }
-    }
+    /* ── RIGHT: clay login card ── */
+    .login-right { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; background: #FBF2E7; }
+    .login-card { background: linear-gradient(145deg, #ffffff 0%, #efe4d1 100%); border-radius: 40px; padding: 48px 40px 40px; width: 100%; max-width: 380px;
+        text-align: center;
+        box-shadow: 40px 50px 90px -14px rgba(163,120,72,0.48), 0 2px 0 rgba(255,255,255,0.8),
+            inset -16px -18px 32px rgba(163,120,72,0.22), inset 16px 18px 32px rgba(255,255,255,1); }
+    .login-card h1 { font-size: 32px; font-weight: 800; color: #28221d; letter-spacing: -0.01em; margin: 0; text-align: center; }
+    .login-card .subtitle { font-size: 14.5px; color: #8f8474; margin: 8px 0 30px; }
 
-    /* ════════════════════════════════════════════════════════════════════════
-       LEFT HALF — Large logo (no panel-level background; shares global gradient)
-       ════════════════════════════════════════════════════════════════════════ */
-    .logo-panel {
-        flex: 1;
-        position: relative;
-        z-index: 2;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        /* No panel-level background — both sides share the same global animated gradient */
-        overflow: hidden;
-    }
+    .clay-label { display: block; font-size: 13px; font-weight: 700; color: #28221d; margin-bottom: 8px; }
+    .clay-field { position: relative; }
+    .clay-field .lead-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); width: 19px; height: 19px; color: #928a79; pointer-events: none; }
+    .clay-input { width: 100%; padding: 16px 16px 16px 48px; border-radius: 18px; border: none;
+        background: linear-gradient(145deg, #ece0c8 0%, #faf4e8 100%);
+        font-size: 15px; color: #28221d; outline: none; font-family: 'Inter', sans-serif;
+        box-shadow: inset 7px 9px 15px rgba(163,120,72,0.26), inset -5px -7px 12px rgba(255,255,255,0.9); }
+    .clay-input::placeholder { color: #a39a89; }
+    .clay-input:focus { box-shadow: inset 7px 9px 15px rgba(163,120,72,0.26), inset -5px -7px 12px rgba(255,255,255,0.9), 0 0 0 3px #f6dfc0; }
 
-    /* Subtle divider between left and right panels */
-    .logo-panel::after {
-        content: '';
-        position: absolute;
-        top: 10%;
-        bottom: 10%;
-        right: 0;
-        width: 1px;
-        background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.15), transparent);
-        pointer-events: none;
-    }
+    .clay-btn { width: 100%; background: linear-gradient(160deg, #f7ab5e 0%, #ef8f2e 45%, #dd6f12 100%); color: #fff; border: none;
+        padding: 17px; border-radius: 18px; font-size: 16.5px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif;
+        box-shadow: 12px 16px 30px -6px rgba(190,100,20,0.5), inset -5px -8px 14px rgba(150,60,5,0.38), inset 5px 8px 14px rgba(255,230,195,0.65);
+        text-shadow: 0 1px 2px rgba(120,55,5,0.35); transition: transform 160ms ease, box-shadow 160ms ease; }
+    .clay-btn:hover { transform: translateY(-1px); }
+    .clay-btn:active { transform: translateY(1px); box-shadow: inset -6px -10px 18px rgba(150,60,5,0.55), inset 6px 10px 18px rgba(255,235,200,0.40); }
 
-    /* ── Large 3D logo container (almost fills the left panel) ── */
-    .logo-display {
-        position: relative;
-        z-index: 3;
-        width: 85%;
-        max-width: 700px;
-        aspect-ratio: 1 / 1;
-        perspective: 800px;
-        animation: logo-enter 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
-    }
-    @keyframes logo-enter {
-        from { opacity: 0; transform: scale(0.85); }
-        to   { opacity: 1; transform: scale(1); }
-    }
+    .ms-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
+        background: linear-gradient(145deg, #fdf8f0 0%, #f3e6d1 100%); color: #28221d; border: none; padding: 17px; border-radius: 20px; font-size: 15.5px; font-weight: 700;
+        cursor: pointer; text-decoration: none; font-family: 'Inter', sans-serif;
+        box-shadow: 0 1px 0 rgba(255,255,255,0.9), 18px 22px 44px -10px rgba(163,120,72,0.4),
+            inset -8px -10px 16px rgba(163,120,72,0.22), inset 8px 10px 16px rgba(255,255,255,0.95);
+        transition: transform 160ms ease, box-shadow 160ms ease; }
+    .ms-btn:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255,255,255,0.9), 22px 26px 50px -10px rgba(163,120,72,0.46),
+            inset -8px -10px 16px rgba(163,120,72,0.22), inset 8px 10px 16px rgba(255,255,255,0.95); }
+    .ms-btn:active { transform: translateY(1px); box-shadow: inset -8px -10px 16px rgba(163,120,72,0.3), inset 8px 10px 16px rgba(255,255,255,0.9); }
 
-    /* Pulsing glow behind the large logo */
-    .logo-display::before {
-        content: '';
-        position: absolute;
-        inset: -40px;
-        background: radial-gradient(circle, rgba(20, 184, 166, 0.30) 0%, transparent 70%);
-        border-radius: 50%;
-        z-index: -1;
-        animation: glow-pulse 3.5s ease-in-out infinite;
-    }
-    @keyframes glow-pulse {
-        0%, 100% { opacity: 0.35; transform: scale(1); }
-        50%      { opacity: 0.65; transform: scale(1.15); }
-    }
+    .clay-link { color: #e0821a; font-weight: 600; text-decoration: none; }
+    .clay-link:hover { color: #b8650e; }
+    .env-note { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 12.5px; color: #a89e8c; border-top: 1px solid rgba(163,120,72,0.18); margin-top: 22px; padding-top: 16px; }
 
-    /* ── 3D logo inner element with continuous wobble ── */
-    .logo-3d-large {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        transform-style: preserve-3d;
-        animation: logo-wobble 5s ease-in-out infinite;
-        will-change: transform;
-        border-radius: 32px;
-        overflow: hidden;
-        /* Layered drop-shadows for real 3D elevation */
-        filter:
-            drop-shadow(0 6px 12px rgba(0, 0, 0, 0.50))
-            drop-shadow(0 16px 32px rgba(1, 105, 111, 0.40))
-            drop-shadow(0 0 40px rgba(20, 184, 166, 0.50));
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02));
-    }
-    @keyframes logo-wobble {
-        0%, 100% { transform: rotateY(-8deg) rotateX(2deg) scale(1); }
-        50%      { transform: rotateY(8deg)  rotateX(-2deg) scale(1.03); }
-    }
-    .logo-3d-large img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        border-radius: 32px;
-        filter: contrast(1.10) brightness(1.08) saturate(1.15);
-    }
-
-    /* ── Shine sweep on the large logo (continuous) ── */
-    .logo-shine-large {
-        position: absolute;
-        inset: 0;
-        border-radius: 32px;
-        overflow: hidden;
-        pointer-events: none;
-        z-index: 2;
-    }
-    .logo-shine-large::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -150%;
-        width: 75%;
-        height: 100%;
-        background: linear-gradient(
-            90deg,
-            transparent 0%,
-            rgba(255, 255, 255, 0.06) 30%,
-            rgba(255, 255, 255, 0.50) 50%,
-            rgba(255, 255, 255, 0.06) 70%,
-            transparent 100%
-        );
-        transform: skewX(-20deg);
-        animation: shine-sweep 3.5s linear infinite;
-    }
-    @keyframes shine-sweep {
-        0%   { left: -150%; }
-        100% { left: 150%; }
-    }
-
-
-    /* ════════════════════════════════════════════════════════════════════════
-       RIGHT HALF — Floating glassmorphic login credentials card
-       (no panel-level background; shares global gradient)
-       ════════════════════════════════════════════════════════════════════════ */
-    .form-panel {
-        flex: 1;
-        position: relative;
-        z-index: 2;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 48px;
-        /* No panel-level background — both sides share the same global animated gradient */
-    }
-
-    /* ── Card entrance wrapper ── */
-    .card-wrapper {
-        animation: card-enter 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
-    }
-    @keyframes card-enter {
-        from { opacity: 0; transform: translateY(30px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ── Glassmorphic card (enlarged) ── */
-    .glass-card {
-        position: relative;
-        z-index: 3;
-        width: 100%;
-        max-width: 560px;
-        padding: 64px 56px;
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(28px) saturate(200%);
-        -webkit-backdrop-filter: blur(28px) saturate(200%);
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 32px;
-        box-shadow:
-            0 12px 40px rgba(0, 0, 0, 0.30),
-            inset 0 1px 0 rgba(255, 255, 255, 0.15);
-        animation: card-float 6s ease-in-out infinite;
-        will-change: transform;
-    }
-    @keyframes card-float {
-        0%, 100% { transform: translateY(0); }
-        50%      { transform: translateY(-8px); }
-    }
-
-    /* ── Glass form inputs ── */
-    .glass-label {
-        display: block;
-        font-size: 15px;
-        font-weight: 500;
-        color: rgba(255, 255, 255, 0.70);
-        margin-bottom: 10px;
-    }
-    .glass-input {
-        width: 100%;
-        padding: 18px 24px;
-        background: rgba(255, 255, 255, 0.07);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 16px;
-        color: #ffffff;
-        font-size: 18px;
-        font-family: 'Inter', sans-serif;
-        outline: none;
-        transition: all 200ms ease;
-    }
-    .glass-input::placeholder { color: rgba(255, 255, 255, 0.38); }
-    .glass-input:focus {
-        background: rgba(255, 255, 255, 0.09);
-        border-color: rgba(20, 184, 166, 0.55);
-        box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
-    }
-
-    /* ── Primary submit button ── */
-    .glass-btn {
-        width: 100%;
-        padding: 18px 28px;
-        background: linear-gradient(135deg, #01696f 0%, #0891b2 100%);
-        border: none;
-        border-radius: 16px;
-        color: #ffffff;
-        font-size: 19px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 200ms ease;
-        box-shadow: 0 4px 16px rgba(1, 105, 111, 0.35);
-    }
-    .glass-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 28px rgba(1, 105, 111, 0.55);
-    }
-    .glass-btn:active { transform: translateY(0); }
-
-    /* ── Microsoft SSO button ── */
-    .ms-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        background: rgba(255, 255, 255, 0.10);
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        padding: 18px 36px;
-        border-radius: 16px;
-        color: #ffffff;
-        text-decoration: none;
-        font-size: 19px;
-        font-weight: 600;
-        transition: all 200ms ease;
-    }
-    .ms-btn:hover {
-        background: rgba(255, 255, 255, 0.14);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-    }
-
-    /* ── Links ── */
-    .glass-link {
-        color: #14b8a6;
-        text-decoration: none;
-        transition: color 200ms ease;
-    }
-    .glass-link:hover { color: #2dd4bf; }
-
-    /* ── Responsive: stack panels vertically on small screens ── */
-    @media (max-width: 768px) {
-        .login-body { flex-direction: column; }
-        .logo-panel {
-            min-height: 38vh;
-        }
-        .logo-panel::after { display: none; }
-        .logo-display { width: 60%; max-width: 380px; }
-        .form-panel { padding: 32px 20px; min-height: 62vh; }
-    }
-    @media (max-width: 480px) {
-        .glass-card { padding: 40px 28px; border-radius: 22px; }
-        .logo-display { width: 70%; max-width: 300px; }
-    }
-
-    /* ── Accessibility: respect reduced-motion preference ── */
-    @media (prefers-reduced-motion: reduce) {
-        .login-bg, .orb, .glass-card, .logo-display::before,
-        .logo-3d-large, .logo-shine-large::before, .card-wrapper, .logo-display {
-            animation: none !important;
-        }
-        .card-wrapper, .logo-display { opacity: 1; }
+    @media (max-width: 900px) {
+        .login-left { display: none; }
+        .login-right { flex: 1; }
     }
 </style>
 
-<div class="login-body">
-    <!-- Animated gradient background -->
-    <div class="login-bg"></div>
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
+<div class="login-wrap">
+    <!-- LEFT: brand image (cropped from reference) -->
+    <div class="login-left"></div>
 
-    <!-- ═══ LEFT HALF: Large logo with shine sweep ═══ -->
-    <div class="logo-panel">
-        <div class="logo-display">
-            <div class="logo-3d-large">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="ACCIO">
-                <div class="logo-shine-large"></div>
-            </div>
-        </div>
-    </div>
+    <!-- RIGHT: login card -->
+    <div class="login-right">
+        <div class="login-card">
+            <h1>Welcome back</h1>
 
-    <!-- ═══ RIGHT HALF: Floating glassmorphic login credentials card ═══ -->
-    <div class="form-panel">
-        <div class="card-wrapper">
-            <div class="glass-card">
-                <h1 style="text-align:center;font-size:34px;font-weight:700;color:#ffffff;margin-bottom:10px;letter-spacing:-0.02em;">Welcome back</h1>
-                <p style="text-align:center;font-size:18px;color:rgba(255,255,255,0.55);margin-bottom:40px;">Sign in to your account to continue</p>
+            {% if auth_mode == 'entra' %}
 
-                {% if auth_mode == 'entra' %}
-
-                  <div style="text-align:center;padding:24px 0;">
-                    <p style="color:rgba(255,255,255,0.50);font-size:16px;margin-bottom:28px;">
-                      Sign in with your organisation's Microsoft account.
-                    </p>
-                    <a href="{{ url_for('auth.entra_login') }}" class="ms-btn">
-                      <svg width="20" height="20" viewBox="0 0 21 21" fill="none"
-                           xmlns="http://www.w3.org/2000/svg">
-                        <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
-                        <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
-                        <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
-                        <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
-                      </svg>
-                      Sign in with Microsoft
-                    </a>
-                  </div>
-
-                {% else %}
-
-                <form method="POST" action="{{ url_for('auth.login') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div style="margin-bottom:28px;">
-                        <label class="glass-label" for="email">Email address</label>
-                        <input type="email" id="email" name="email" class="glass-input" placeholder="you@company.com" required autofocus>
-                    </div>
-                    <div style="margin-bottom:36px;">
-                        <label class="glass-label" for="password">Password</label>
-                        <input type="password" id="password" name="password" class="glass-input" placeholder="Enter your password" required>
-                    </div>
-                    <button type="submit" class="glass-btn">Sign In</button>
-                </form>
-
-                {% endif %}
-
-                <p style="text-align:center;font-size:17px;color:rgba(255,255,255,0.45);margin-top:28px;">
-                    <a href="{{ url_for('auth.forgot_password') }}" class="glass-link">Forgot your password?</a>
+              <div style="text-align:center;padding:8px 0;">
+                <p style="color:#8f8474;font-size:14px;margin:14px 0 26px;">
+                  Sign in with your organisation's Microsoft account.
                 </p>
-                <p style="text-align:center;font-size:14px;color:rgba(255,255,255,0.30);margin-top:16px;">Local development environment</p>
+                <a href="{{ url_for('auth.entra_login') }}" class="ms-btn">
+                  <svg width="20" height="20" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+                  </svg>
+                  Sign in with Microsoft
+                </a>
+              </div>
+
+            {% else %}
+
+            <form method="POST" action="{{ url_for('auth.login') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="margin-bottom:18px;">
+                    <label class="clay-label" for="email">Email address</label>
+                    <div class="clay-field">
+                        <i class="lead-icon" data-lucide="mail"></i>
+                        <input type="email" id="email" name="email" class="clay-input" placeholder="you@company.com" required autofocus>
+                    </div>
+                </div>
+                <div style="margin-bottom:28px;">
+                    <label class="clay-label" for="password">Password</label>
+                    <div class="clay-field">
+                        <i class="lead-icon" data-lucide="lock"></i>
+                        <input type="password" id="password" name="password" class="clay-input" placeholder="Enter your password" required>
+                    </div>
+                </div>
+                <button type="submit" class="clay-btn">Sign In</button>
+            </form>
+
+            {% endif %}
+
+            {% if auth_mode != 'entra' %}
+            <p style="text-align:center;font-size:14px;margin-top:22px;">
+                <a href="{{ url_for('auth.forgot_password') }}" class="clay-link">Forgot your password?</a>
+            </p>
+            <div class="env-note">
+                <i data-lucide="info" style="width:14px;height:14px;"></i>
+                Local development environment
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <script>
-    // Initialise Lucide icons
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof lucide !== 'undefined') lucide.createIcons();
     });
