@@ -820,10 +820,20 @@
         // ── SPINNER SUBMIT ──
         function submitWithSpinner(btn, loadingText) {
             loadingText = loadingText || 'Processing...';
+            // Guard against double-submits synchronously (without disabling the button,
+            // which would cancel the browser's native form submission if done here).
+            if (btn.dataset.submitting === '1') return false;
+            btn.dataset.submitting = '1';
             var original = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="display:inline-block;margin-right:6px;vertical-align:middle;"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>' + loadingText;
-            setTimeout(function(){ btn.disabled = false; btn.innerHTML = original; }, 10000);
+            // Defer disabling/spinner UI to the next tick so the click's default action
+            // (submitting the form) is dispatched by the browser first. Disabling a submit
+            // button synchronously inside its own click handler causes some browsers
+            // (Chrome/Edge/Firefox) to silently cancel the form submission.
+            setTimeout(function(){
+                btn.disabled = true;
+                btn.innerHTML = '<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="display:inline-block;margin-right:6px;vertical-align:middle;"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>' + loadingText;
+            }, 0);
+            setTimeout(function(){ btn.disabled = false; btn.innerHTML = original; btn.dataset.submitting = '0'; }, 10000);
         }
 
         // ── TICKET NUMBER COPY ──
