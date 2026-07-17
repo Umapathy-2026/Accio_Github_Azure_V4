@@ -13,7 +13,7 @@
             {{ form.scope_obj.name if form.scope_obj else '—' }}
         </span>
         {% if form.category_obj %}
-        <span class="badge" title="Category" style="background:#e8e8ff;color:#3730a3;">
+        <span class="badge" title="Category" style="background:linear-gradient(145deg,#e2e2fb 0%,#c2c2f5 100%);color:#2f2b8f;">
             <i data-lucide="tag" style="width:12px;height:12px;margin-right:6px;"></i>
             {{ form.category_obj.name }}
         </span>
@@ -81,7 +81,7 @@ function renderFields(){
   var html = '';
   function lockRow(label, type, required){
     var req = required ? '<span class="badge badge-yellow" style="margin-left:8px;">Required</span>' : '';
-    return '<div class="field-row" style="background:var(--surface);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:8px;padding:14px 16px;border:1px solid var(--border);margin-bottom:8px;">'
+      + '<div class="field-row" style="background:var(--surface);border-radius:14px;padding:14px 16px;border:none;box-shadow:var(--clay-raised-sm);margin-bottom:8px;">'
       + '<div style="display:flex;align-items:center;gap:8px;">'
       + '<i data-lucide="lock" style="width:14px;height:14px;color:var(--text-muted);"></i>'
       + '<div style="font-weight:600;">'+ escapeHtml(label) +'</div>'
@@ -117,7 +117,7 @@ function customRow(f, idx){
     optionsTextarea = '<div style="margin-top:8px;"><label class="form-label" style="font-size:12px;">Options (one per line)</label>'+
       '<textarea class="form-input" rows="3" oninput="updateCustomOptions('+idx+', this.value)">'+ escapeHtml(opts) +'</textarea></div>';
   }
-  return '<div class="custom-item" draggable="true" data-idx="'+idx+'" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;">'
+  return '<div class="custom-item" draggable="true" data-idx="'+idx+'" style="background:var(--surface-2);border:none;border-radius:14px;padding:12px;box-shadow:var(--clay-pressed);margin-bottom:8px;">'
     + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
     + '<i data-lucide="grip-vertical" style="width:14px;height:14px;color:var(--text-muted);cursor:grab;"></i>'
     + '<input class="form-input" style="flex:1;" placeholder="Label" value="'+ escapeAttr(f.label || '') +'" oninput="updateCustom('+idx+',\'label\', this.value)">'

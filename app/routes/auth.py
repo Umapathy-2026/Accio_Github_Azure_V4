@@ -275,10 +275,12 @@ def entra_login():
         return redirect(auth_url)
     except Exception as e:
         import traceback
+        tb = traceback.format_exc()
         current_app.logger.error(f'ENTRA LOGIN ERROR: {type(e).__name__}: {e}')
-        current_app.logger.error(traceback.format_exc())
+        current_app.logger.error(tb)
         current_app.logger.error(f'Config: CLIENT_ID={current_app.config.get("ENTRA_CLIENT_ID")}, TENANT_ID={current_app.config.get("ENTRA_TENANT_ID")}, SECRET_LEN={len(current_app.config.get("ENTRA_CLIENT_SECRET", ""))}')
-        raise
+        # Temporary: return error details directly so we can debug without log access
+        return f'<pre>ERROR: {type(e).__name__}: {e}\n\n{tb}\n\nCLIENT_ID={current_app.config.get("ENTRA_CLIENT_ID")}\nTENANT_ID={current_app.config.get("ENTRA_TENANT_ID")}\nSECRET_LEN={len(current_app.config.get("ENTRA_CLIENT_SECRET", ""))}\nREDIRECT_URI={current_app.config.get("ENTRA_REDIRECT_URI")}</pre>', 500
 
 
 @auth_bp.route('/entra/callback')

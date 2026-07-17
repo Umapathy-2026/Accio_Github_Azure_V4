@@ -13,29 +13,53 @@
         overflow: auto;
     }
 
-    /* ── LEFT: brand panel with clay blobs + logo ── */
-    .login-left { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; }
-    .blob { position: absolute; animation: blob-float 14s ease-in-out infinite; }
-    .blob.b1 { width: 30vw; max-width: 380px; height: 26vw; max-height: 320px; top: -6%; left: -4%;
-        background: linear-gradient(145deg, #f6e0bb 0%, #ead0ab 60%, #dcb583 100%);
-        border-radius: 60% 40% 55% 45% / 55% 55% 45% 45%;
-        box-shadow: 24px 32px 60px -10px rgba(163,120,72,0.35), inset -10px -10px 20px rgba(163,120,72,0.20), inset 10px 10px 20px rgba(255,255,255,0.55); }
-    .blob.b2 { width: 12vw; max-width: 160px; height: 12vw; max-height: 160px; bottom: 14%; left: -3%;
-        background: linear-gradient(145deg, #f7b784 0%, #ef9a52 55%, #d97f30 100%);
-        border-radius: 50%; animation-delay: -4s;
-        box-shadow: 24px 32px 60px -10px rgba(163,90,40,0.38), inset -8px -8px 16px rgba(140,60,10,0.28), inset 8px 8px 16px rgba(255,230,200,0.55); }
-    .blob.b3 { width: 7vw; max-width: 90px; height: 7vw; max-height: 90px; top: 14%; left: 26%;
-        background: linear-gradient(145deg, #fdf6ea 0%, #f6e6d0 60%, #ecd6b4 100%);
-        border-radius: 50%; animation-delay: -8s;
-        box-shadow: 18px 24px 44px -10px rgba(163,120,72,0.28), inset -6px -6px 12px rgba(163,120,72,0.22), inset 6px 6px 12px rgba(255,255,255,0.80); }
-    .blob.b4 { width: 20vw; max-width: 250px; height: 16vw; max-height: 200px; bottom: -8%; left: 12%;
-        background: linear-gradient(145deg, #fbf1de 0%, #f4e7d4 55%, #e6d2ac 100%);
-        border-radius: 50% 50% 45% 55% / 60% 55% 45% 40%; animation-delay: -6s;
-        box-shadow: 24px 30px 56px -10px rgba(163,120,72,0.30), inset -8px -8px 16px rgba(163,120,72,0.18), inset 8px 8px 16px rgba(255,255,255,0.70); }
-    @keyframes blob-float { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(14px,-16px) scale(1.04); } }
+    /* ── LEFT: brand panel ── */
+    .login-left { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; background: #f0e4d0; }
 
-    .login-logo { position: relative; z-index: 2; width: 68%; max-width: 460px; filter: drop-shadow(5px 8px 6px rgba(120,90,50,0.26)); animation: logo-enter 800ms cubic-bezier(0.16,1,0.3,1) both; }
-    .login-logo img { width: 100%; display: block; }
+    /* Main cream blob — large, centered, organic shape */
+    .blob-main { position: absolute; top: 5%; left: 5%; width: 80%; height: 85%; z-index: 1;
+        background: linear-gradient(155deg, #faf3e6 0%, #f2e5cc 40%, #e8d5ad 100%);
+        border-radius: 48% 52% 42% 58% / 45% 55% 50% 50%;
+        box-shadow: 28px 36px 72px -12px rgba(163,120,72,0.38), inset -14px -18px 32px rgba(163,120,72,0.14), inset 14px 18px 32px rgba(255,255,255,0.82); }
+
+    /* Peach blob — upper-right corner */
+    .blob-peach-tr { position: absolute; top: -8%; right: -12%; width: 44%; height: 40%; z-index: 2;
+        background: linear-gradient(160deg, #f8c89a 0%, #f0a86a 55%, #e89048 100%);
+        border-radius: 50% 50% 56% 44% / 52% 48% 52% 48%;
+        box-shadow: 22px 28px 56px -10px rgba(180,100,30,0.35), inset -10px -12px 22px rgba(150,70,15,0.22), inset 10px 12px 22px rgba(255,220,170,0.55); }
+
+    /* Peach blob — bottom-right corner */
+    .blob-peach-br { position: absolute; bottom: -10%; right: -8%; width: 38%; height: 35%; z-index: 2;
+        background: linear-gradient(145deg, #f6c090 0%, #efa460 55%, #e08838 100%);
+        border-radius: 55% 45% 48% 52% / 50% 55% 45% 50%;
+        box-shadow: 22px 28px 56px -10px rgba(180,100,30,0.32), inset -10px -12px 22px rgba(150,70,15,0.20), inset 10px 12px 22px rgba(255,220,170,0.50); }
+
+    /* Small pearl spheres */
+    .pearl { position: absolute; z-index: 3; border-radius: 50%;
+        background: radial-gradient(circle at 34% 30%, #fffdf8 0%, #f6edd8 55%, #e8d8b2 100%);
+        box-shadow: 8px 10px 18px -5px rgba(163,120,72,0.30), inset -3px -4px 6px rgba(163,120,72,0.16), inset 3px 4px 6px rgba(255,255,255,0.80); }
+    .pearl.p1 { width: 26px; height: 26px; top: 6%; left: 34%; }
+    .pearl.p2 { width: 16px; height: 16px; top: 13%; right: 28%; }
+    .pearl.p3 { width: 14px; height: 14px; top: 4%; right: 22%;
+        background: radial-gradient(circle at 34% 30%, #fcd8b0 0%, #f0a86a 60%, #d88030 100%);
+        box-shadow: 6px 8px 14px -4px rgba(180,100,30,0.35), inset -3px -3px 5px rgba(150,70,15,0.22), inset 3px 3px 5px rgba(255,220,170,0.60); }
+    .pearl.p4 { width: 50px; height: 50px; bottom: 12%; left: 4%; }
+    .pearl.p5 { width: 18px; height: 18px; bottom: 32%; right: 8%; }
+
+    @keyframes blob-float { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(6px,-8px) scale(1.015); } }
+
+    /* ── Brand stack — centered on the blob ── */
+    .brand-stack { position: relative; z-index: 4; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 32px;
+        animation: logo-enter 800ms cubic-bezier(0.16,1,0.3,1) both; }
+    .brand-row { display: flex; align-items: center; gap: 14px; }
+    .logo-j { width: 100px; height: auto; filter: drop-shadow(5px 8px 12px rgba(140,100,55,0.35)); }
+    .brand-je { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 28px; line-height: 1.1;
+        text-transform: uppercase; letter-spacing: 0.02em; text-align: left; margin: 0; color: #2c2622;
+        text-shadow: -1px -1px 0 rgba(255,255,255,0.4), 1px 1px 0 #332a22, 2px 2px 0 #2a221a, 3px 3px 0 #221a12, 5px 7px 10px rgba(100,70,30,0.45); }
+    .brand-accio { font-family: 'Playfair Display', serif; font-weight: 900; font-size: clamp(58px, 8vw, 100px); line-height: 1; color: #2c2622; margin-top: 4px;
+        text-shadow: -2px -2px 0 rgba(255,255,255,0.4), 2px 2px 0 #332a22, 4px 4px 0 #2a221a, 6px 6px 0 #221a12, 8px 8px 0 #1a1410, 12px 14px 24px rgba(100,70,30,0.50); }
+    .brand-tagline { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 900; font-size: 22px; color: #2c2622; letter-spacing: 0.01em; margin-top: 2px;
+        text-shadow: -1px -1px 0 rgba(255,255,255,0.4), 1px 1px 0 #332a22, 2px 2px 0 #2a221a, 3px 3px 0 #221a12, 5px 7px 10px rgba(100,70,30,0.45); }
     @keyframes logo-enter { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: none; } }
 
     /* ── RIGHT: clay login card ── */
@@ -78,19 +102,28 @@
         .login-right { width: 100%; max-width: 100%; }
     }
     @media (prefers-reduced-motion: reduce) {
-        .blob, .login-logo, .login-card { animation: none !important; }
+        .blob-main, .blob-peach-tr, .blob-peach-br, .pearl, .brand-stack, .login-card { animation: none !important; }
     }
 </style>
 
 <div class="login-wrap">
     <!-- LEFT: brand -->
     <div class="login-left">
-        <div class="blob b1"></div>
-        <div class="blob b2"></div>
-        <div class="blob b3"></div>
-        <div class="blob b4"></div>
-        <div class="login-logo">
-            <img src="{{ url_for('static', filename='logo_login.png') }}" alt="Johnson Electric ACCIO - Finance Approval Flow">
+        <div class="blob-main"></div>
+        <div class="blob-peach-tr"></div>
+        <div class="blob-peach-br"></div>
+        <div class="pearl p1"></div>
+        <div class="pearl p2"></div>
+        <div class="pearl p3"></div>
+        <div class="pearl p4"></div>
+        <div class="pearl p5"></div>
+        <div class="brand-stack">
+            <div class="brand-row">
+                <img class="logo-j" src="{{ url_for('static', filename='clay/logo_j_clay.png') }}" alt="Johnson Electric">
+                <h1 class="brand-je">Johnson<br>Electric</h1>
+            </div>
+            <div class="brand-accio">ACCIO</div>
+            <div class="brand-tagline">Finance Approval Flow</div>
         </div>
     </div>
 
