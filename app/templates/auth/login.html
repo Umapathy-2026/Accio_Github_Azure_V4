@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Sign In - ACCIO{% endblock %}
 {% set hide_sidebar = True %}
+{% block extra_head %}
+<link rel="preload" as="image" href="{{ url_for('static', filename='clay/login_left_panel.png') }}">
+{% endblock %}
 {% block full_content %}
 <style>
     body { background: #FBF2E7 !important; }
@@ -11,7 +14,10 @@
         font-family: 'Inter', sans-serif;
         background: #FBF2E7;
         overflow: auto;
+        opacity: 0;
+        transition: opacity 180ms ease;
     }
+    .login-wrap.ready { opacity: 1; }
 
     /* ── LEFT: the reference image, filling exactly half the screen ── */
     .login-left {
@@ -133,6 +139,20 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        var wrap = document.querySelector('.login-wrap');
+        var revealed = false;
+        function reveal() {
+            if (revealed) return;
+            revealed = true;
+            if (wrap) wrap.classList.add('ready');
+        }
+        var img = new Image();
+        img.onload = reveal;
+        img.onerror = reveal;
+        img.src = "{{ url_for('static', filename='clay/login_left_panel.png') }}";
+        // Failsafe: never let a slow/broken image block the page from appearing.
+        setTimeout(reveal, 300);
     });
 </script>
 {% endblock %}
