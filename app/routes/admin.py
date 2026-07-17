@@ -652,18 +652,37 @@ def edit_category(category_id):
 @role_required('admin')
 def delete_category(category_id):
     cat = Category.query.get_or_404(category_id)
-    active_forms = IssueForm.query.filter_by(category_id=cat.id, is_deleted=False).count()
-    if active_forms > 0:
-        msg = f'{active_forms} forms are still linked to this category. Reassign or delete those forms first.'
+    # Forms that are still "live" (not soft-deleted) block category deletion outright.
+    active_forms = IssueForm.query.filter_by(category_id=cat.id, is_deleted=False).all()
+    if active_forms:
+        names = ', '.join(f.name for f in active_forms[:5])
+        if len(active_forms) > 5:
+            names += f', and {len(active_forms) - 5} more'
+        msg = f'{len(active_forms)} form(s) are still linked to this category ({names}). Delete or move those forms first.'
         if _is_ajax():
             return jsonify({'success': False, 'message': msg}), 400
         flash(msg, 'error')
         return redirect(url_for('admin.forms'))
+    # Soft-deleted forms may still hold a foreign key reference to this category
+    # (their category_id was never cleared). Detach them so the DB-level FK
+    # constraint doesn't reject the category deletion.
+    deleted_forms = IssueForm.query.filter_by(category_id=cat.id, is_deleted=True).all()
+    for f in deleted_forms:
+        f.category_id = None
     cat_id = cat.id
+    cat_name = cat.name
     log_admin_action('CATEGORY_DELETED', 'category', cat.id, {'name': cat.name, 'scope_id': cat.scope_id})
-    db.session.delete(cat)
-    db.session.commit()
-    msg = f'Category "{cat.name}" deleted.'
+    try:
+        db.session.delete(cat)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        msg = 'Could not delete this category because other records still reference it.'
+        if _is_ajax():
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, 'error')
+        return redirect(url_for('admin.forms'))
+    msg = f'Category "{cat_name}" deleted.'
     if _is_ajax():
         return jsonify({'success': True, 'message': msg, 'category_id': cat_id})
     flash(msg, 'success')
