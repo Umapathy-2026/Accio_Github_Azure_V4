@@ -85,7 +85,7 @@
                             <i data-lucide="edit" style="width:11px;height:11px;"></i>
                             Edit
                         </button>
-                        {% if user.locked_until and user.locked_until > now %}
+                        {% if user.is_locked %}
                         <form method="POST" action="{{ url_for('admin.unlock_user', user_id=user.id) }}" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn-secondary" style="padding:4px 8px;font-size:11px;background:linear-gradient(145deg,#fef3c7,#fbdd8a);box-shadow:var(--clay-raised-sm);">
