@@ -86,9 +86,9 @@ def login():
 
         user = User.query.filter_by(email=email).first()
 
-        if user and user.locked_until and \
-                user.locked_until > datetime.now(timezone.utc):
-            remaining = (user.locked_until -
+        if user and user.is_locked:
+            from app.models import aware_utc
+            remaining = (aware_utc(user.locked_until) -
                          datetime.now(timezone.utc)).seconds // 60
             flash(
                 f'Your account is locked. Try again in {remaining} minutes, '
@@ -171,8 +171,9 @@ def reset_password(token):
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     user = User.query.filter_by(reset_token=token_hash).first()
 
+    from app.models import aware_utc
     if not user or not user.reset_token_expiry or \
-            user.reset_token_expiry < datetime.now(timezone.utc):
+            aware_utc(user.reset_token_expiry) < datetime.now(timezone.utc):
         flash('This reset link is invalid or has expired.', 'error')
         return redirect(url_for('auth.login'))
 
