@@ -62,11 +62,6 @@ def create_app(testing=False):
 
     app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
     app.config['UPLOAD_FOLDER'] = os.path.join(instance_dir, 'uploads')
-    app.config['MAIL_SERVER'] = 'smtp.office365.com'
-    app.config['MAIL_PORT'] = 587
-    app.config['MAIL_USE_TLS'] = True
-    app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
-    app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
     app.config['WTF_CSRF_ENABLED'] = True
     app.config['AZURE_STORAGE_ACCOUNT_URL'] = os.getenv('AZURE_STORAGE_ACCOUNT_URL', '')
     app.config['AZURE_STORAGE_CONTAINER'] = os.getenv('AZURE_STORAGE_CONTAINER', 'accio-uploads')
@@ -79,13 +74,17 @@ def create_app(testing=False):
     app.config['ENTRA_REDIRECT_URI']  = os.getenv('ENTRA_REDIRECT_URI', '')
     app.config['ENTRA_SCOPES']        = ['User.Read']
 
-    # Email: set MAIL_DEV_MODE=true to log emails to App Service log stream
-    # instead of sending them — useful when SMTP is not yet configured
-    app.config['MAIL_DEV_MODE'] = os.getenv('MAIL_DEV_MODE', 'false').lower() == 'true'
+    # Email: sent via Microsoft Graph API (client credentials / app-only auth),
+    # using the same App Registration as Entra ID SSO above, plus the Mail.Send
+    # Application permission granted separately by IT (with admin consent).
+    # MAIL_SENDER_ADDRESS is the mailbox ACCIO sends "as" — e.g. a shared
+    # mailbox like EU.Tax.Hub@johnsonelectric.com. Exchange may also have an
+    # Application Access Policy restricting which mailbox this app can use.
+    app.config['MAIL_SENDER_ADDRESS'] = os.getenv('MAIL_SENDER_ADDRESS', '')
 
-    # Override MAIL_SERVER/PORT from environment if provided
-    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', app.config['MAIL_SERVER'])
-    app.config['MAIL_PORT']   = int(os.getenv('MAIL_PORT', str(app.config['MAIL_PORT'])))
+    # Set MAIL_DEV_MODE=true to log emails to App Service log stream
+    # instead of sending them — useful when mail is not yet configured
+    app.config['MAIL_DEV_MODE'] = os.getenv('MAIL_DEV_MODE', 'false').lower() == 'true'
 
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
