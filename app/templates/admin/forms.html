@@ -12,6 +12,33 @@
     </button>
 </div>
 
+<div class="filter-bar">
+    <div style="position:relative;flex:1;min-width:180px;">
+        <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-faint);pointer-events:none;"></i>
+        <input type="text" class="filter-input" id="formSearch" placeholder="Search by form name..." oninput="filterForms()" style="padding-left:36px;">
+    </div>
+    <select class="filter-select" id="formScopeFilter" onchange="filterForms()">
+        <option value="">All Scopes</option>
+        {% for s in scopes %}
+        <option value="{{ s.name }}">{{ s.name }}</option>
+        {% endfor %}
+    </select>
+    <select class="filter-select" id="formCategoryFilter" onchange="filterForms()">
+        <option value="">All Categories</option>
+        {% for c in categories %}
+        <option value="{{ c.name }}">{{ c.name }}</option>
+        {% endfor %}
+    </select>
+    <select class="filter-select" id="formStatusFilter" onchange="filterForms()">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+    </select>
+    <button class="btn-secondary" id="formClear" onclick="clearFormFilters()" style="display:none;padding:6px 12px;font-size:13px;">
+        <i data-lucide="x" style="width:14px;height:14px;"></i> Clear
+    </button>
+</div>
+
 <div class="card" style="padding:0;overflow:hidden;">
     <table>
         <thead>
@@ -25,9 +52,9 @@
                 <th style="width:220px;">Actions</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="formTableBody">
             {% for form in forms %}
-            <tr>
+            <tr data-name="{{ form.name|lower }}" data-scope="{{ form.scope_obj.name if form.scope_obj else '' }}" data-category="{{ form.category_obj.name if form.category_obj else '' }}" data-status="{{ 'active' if form.is_active else 'inactive' }}">
                 <td style="color:var(--text-muted);font-size:13px;">{{ form.id }}</td>
                 <td>
                     <span style="font-weight:500;">{{ form.name }}</span>
@@ -68,6 +95,9 @@
             {% endfor %}
         </tbody>
     </table>
+    <div id="formEmptyFiltered" style="display:none;text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">
+        No forms match the selected filters.
+    </div>
 </div>
 
 <!-- Create Form Modal -->
@@ -213,6 +243,39 @@ var scopeNames = {};
 {% for s in active_scopes %}
 scopeNames['{{ s.id }}'] = {{ s.name|tojson }};
 {% endfor %}
+
+function filterForms() {
+    var search = document.getElementById('formSearch').value.toLowerCase();
+    var scope = document.getElementById('formScopeFilter').value;
+    var category = document.getElementById('formCategoryFilter').value;
+    var status = document.getElementById('formStatusFilter').value;
+    var tableBody = document.getElementById('formTableBody');
+    var rows = tableBody.querySelectorAll('tr');
+    var visible = 0;
+    rows.forEach(function(row) {
+        var name = row.dataset.name || '';
+        var rowScope = row.dataset.scope || '';
+        var rowCategory = row.dataset.category || '';
+        var rowStatus = row.dataset.status || '';
+        var match = true;
+        if (search && name.indexOf(search) === -1) match = false;
+        if (scope && rowScope !== scope) match = false;
+        if (category && rowCategory !== category) match = false;
+        if (status && rowStatus !== status) match = false;
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    document.getElementById('formEmptyFiltered').style.display = visible === 0 ? 'block' : 'none';
+    document.getElementById('formClear').style.display = (search || scope || category || status) ? 'inline-flex' : 'none';
+}
+
+function clearFormFilters() {
+    document.getElementById('formSearch').value = '';
+    document.getElementById('formScopeFilter').value = '';
+    document.getElementById('formCategoryFilter').value = '';
+    document.getElementById('formStatusFilter').value = '';
+    filterForms();
+}
 
 function openCreateFormModal() {
     document.getElementById('form_name').value = '';
