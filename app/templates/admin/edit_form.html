@@ -157,6 +157,7 @@ function removeCustom(idx){ state.custom.splice(idx,1); renderFields(); }
 
 function updateCustom(idx, key, value){
   if (key === 'options' && Array.isArray(value)) state.custom[idx].options = value; else state.custom[idx][key] = value;
+  if (key === 'type') { renderFields(); return; }
   updateHidden();
 }
 
