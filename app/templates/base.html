@@ -437,6 +437,10 @@
                         <i data-lucide="list" style="width:16px;height:16px;"></i>
                         Request History
                     </a>
+                    <a href="{{ url_for('appr.analytics') }}" class="nav-item {% if request.endpoint == 'appr.analytics' %}active{% endif %}">
+                        <i data-lucide="pie-chart" style="width:16px;height:16px;"></i>
+                        Analytics
+                    </a>
                     <div style="border-top:1px solid var(--border); margin:8px 12px; padding-top:8px;">
                         <a href="{{ url_for('req.dashboard') }}" class="nav-item {% if request.endpoint == 'req.dashboard' %}active{% endif %}">
                             <i data-lucide="ticket" style="width:16px;height:16px;"></i>

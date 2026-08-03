@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 
 from app import db
-from app.models import Ticket, ApprovalLog, ApprovalAction, TicketStatus, User, Notification, Scope
+from app.models import Ticket, ApprovalLog, ApprovalAction, TicketStatus, User, Notification, Scope, Category, IssueForm
 from app.utils.email import send_ticket_approved, send_ticket_rejected, send_ticket_sent_back
 from app.routes.auth import role_required
 
@@ -177,6 +177,51 @@ def request_history():
     active_scopes = Scope.query.filter_by(is_active=True).order_by(Scope.name.asc()).all()
     return render_template('approver/request_history.html', tickets=tickets, pagination=pagination, active_scopes=active_scopes,
                            filters={'status': status, 'scope': scope, 'from': created_from, 'to': created_to})
+
+
+@appr_bp.route('/analytics')
+@login_required
+@role_required('approver', 'admin')
+def analytics():
+    """Category-wise ticket breakdown, within scopes the approver has access to."""
+    from sqlalchemy import func
+
+    if current_user.role == 'approver':
+        my_scopes = current_user.scopes.all()
+    else:
+        my_scopes = Scope.query.filter_by(is_active=True).order_by(Scope.name.asc()).all()
+    scope_ids = [s.id for s in my_scopes]
+
+    selected_scope = request.args.get('scope', '').strip()
+    selected_user = request.args.get('user_id', type=int)
+
+    base_filters = [IssueForm.scope_id.in_(scope_ids)]
+    if selected_scope:
+        sc = Scope.query.filter_by(name=selected_scope).first()
+        if sc:
+            base_filters.append(IssueForm.scope_id == sc.id)
+    if selected_user:
+        base_filters.append(Ticket.created_by == selected_user)
+
+    rows = db.session.query(Category.name, func.count(Ticket.id)) \
+        .select_from(Ticket) \
+        .join(IssueForm, Ticket.form_id == IssueForm.id) \
+        .outerjoin(Category, IssueForm.category_id == Category.id) \
+        .filter(*base_filters) \
+        .group_by(Category.name) \
+        .all()
+    category_data = [{'label': (name or 'Uncategorized'), 'count': count} for name, count in rows]
+    total_count = sum(c['count'] for c in category_data)
+
+    users_list = db.session.query(User.id, User.display_name) \
+        .join(Ticket, Ticket.created_by == User.id) \
+        .join(IssueForm, Ticket.form_id == IssueForm.id) \
+        .filter(IssueForm.scope_id.in_(scope_ids)) \
+        .distinct().order_by(User.display_name.asc()).all()
+
+    return render_template('approver/analytics.html',
+                           scopes=my_scopes, category_data=category_data, total_count=total_count,
+                           users_list=users_list, selected_scope=selected_scope, selected_user=selected_user)
 
 
 @appr_bp.route('/history/export')
