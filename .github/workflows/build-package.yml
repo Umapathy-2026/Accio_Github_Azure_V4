@@ -1,0 +1,42 @@
+name: Build Full Deploy Package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          python -m venv antenv --copies
+          source antenv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Zip full deployment package
+        run: |
+          zip -r release-with-venv.zip . \
+            -x "*.git*" \
+            -x "instance/*" \
+            -x "**/__pycache__/*" \
+            -x "**/*.pyc" \
+            -x ".claude/*" \
+            -x "memory-bank/*" \
+            -x "tests/*" \
+            -x ".github/*"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-with-venv
+          path: release-with-venv.zip
