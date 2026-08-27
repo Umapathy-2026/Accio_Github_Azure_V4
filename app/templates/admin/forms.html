@@ -12,6 +12,33 @@
     </button>
 </div>
 
+<div class="filter-bar">
+    <div style="position:relative;flex:1;min-width:180px;">
+        <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-faint);pointer-events:none;"></i>
+        <input type="text" class="filter-input" id="formSearch" placeholder="Search by form name..." oninput="filterForms()" style="padding-left:36px;">
+    </div>
+    <select class="filter-select" id="formScopeFilter" onchange="filterForms()">
+        <option value="">All Scopes</option>
+        {% for s in scopes %}
+        <option value="{{ s.name }}">{{ s.name }}</option>
+        {% endfor %}
+    </select>
+    <select class="filter-select" id="formCategoryFilter" onchange="filterForms()">
+        <option value="">All Categories</option>
+        {% for c in categories %}
+        <option value="{{ c.name }}">{{ c.name }}</option>
+        {% endfor %}
+    </select>
+    <select class="filter-select" id="formStatusFilter" onchange="filterForms()">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+    </select>
+    <button class="btn-secondary" id="formClear" onclick="clearFormFilters()" style="display:none;padding:6px 12px;font-size:13px;">
+        <i data-lucide="x" style="width:14px;height:14px;"></i> Clear
+    </button>
+</div>
+
 <div class="card" style="padding:0;overflow:hidden;">
     <table>
         <thead>
@@ -25,9 +52,9 @@
                 <th style="width:220px;">Actions</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="formTableBody">
             {% for form in forms %}
-            <tr>
+            <tr data-name="{{ form.name|lower }}" data-scope="{{ form.scope_obj.name if form.scope_obj else '' }}" data-category="{{ form.category_obj.name if form.category_obj else '' }}" data-status="{{ 'active' if form.is_active else 'inactive' }}">
                 <td style="color:var(--text-muted);font-size:13px;">{{ form.id }}</td>
                 <td>
                     <span style="font-weight:500;">{{ form.name }}</span>
@@ -68,6 +95,9 @@
             {% endfor %}
         </tbody>
     </table>
+    <div id="formEmptyFiltered" style="display:none;text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">
+        No forms match the selected filters.
+    </div>
 </div>
 
 <!-- Create Form Modal -->
@@ -92,13 +122,14 @@
                     </select>
                 </div>
                 <div>
-                    <label class="form-label" for="new_form_category">Category (optional)</label>
-                    <select id="new_form_category" name="category_id" class="form-input">
-                        <option value="">None</option>
-                        {% for c in active_categories %}
-                        <option value="{{ c.id }}" data-scope="{{ c.scope_id }}">{{ c.name }}</option>
-                        {% endfor %}
+                    <label class="form-label" for="new_form_category">Category <span style="color:#dc2626;">*</span></label>
+                    <select id="new_form_category" name="category_id" class="form-input" required>
+                        <option value="" disabled selected>Select category...</option>
                     </select>
+                    <button type="button" class="btn-secondary" id="manageCategoriesBtn" style="margin-top:8px;padding:4px 10px;font-size:12px;" onclick="openManageCategoriesModal()">
+                        <i data-lucide="tags" style="width:12px;height:12px;"></i>
+                        Manage Categories
+                    </button>
                 </div>
             </div>
             <div style="margin-bottom:16px;">
@@ -114,6 +145,76 @@
             </div>
         </form>
     </div>
+</div>
+
+<!-- Manage Categories Modal -->
+<div class="modal-overlay" id="manageCategoriesModal">
+  <div class="modal" style="width:520px;">
+    <h3 class="modal-title">Manage Categories</h3>
+    <p class="modal-desc" id="manageCategoriesScopeLabel">Categories for the selected scope</p>
+
+    <div id="manageCategoriesNoScope" style="display:none;text-align:center;padding:24px 0;color:var(--text-muted);font-size:13px;">
+        Please select a Scope in the Create Form modal first.
+    </div>
+
+    <div id="manageCategoriesContent">
+        <div style="max-height:260px;overflow-y:auto;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;">
+            {% for s in active_scopes %}
+            <div class="cat-scope-group" data-scope="{{ s.id }}" style="display:none;"></div>
+            {% endfor %}
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.create_category') }}" id="addCategoryForm" style="display:flex;gap:8px;align-items:flex-end;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="scope_id" id="manage_cat_scope_id" value="">
+            <div style="flex:1;">
+                <label class="form-label" for="manage_cat_name">New category name</label>
+                <input type="text" id="manage_cat_name" name="name" class="form-input" placeholder="e.g., Payment, Reconciliation" required>
+            </div>
+            <button type="submit" class="btn-primary" style="padding:10px 14px;">
+                <i data-lucide="plus" style="width:14px;height:14px;"></i>
+                Add
+            </button>
+        </form>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('manageCategoriesModal').classList.remove('active')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Category Modal -->
+<div class="modal-overlay" id="editCategoryModal">
+  <div class="modal" style="width:420px;">
+    <h3 class="modal-title">Edit Category</h3>
+    <form method="POST" id="editCategoryForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="margin-bottom:16px;">
+        <label class="form-label" for="edit_cat_name">Name</label>
+        <input type="text" id="edit_cat_name" name="name" class="form-input" required>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('editCategoryModal').classList.remove('active')">Cancel</button>
+        <button type="submit" class="btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete Category Modal -->
+<div class="modal-overlay" id="deleteCategoryModal">
+  <div class="modal" style="width:420px;">
+    <h3 class="modal-title">Delete Category</h3>
+    <p class="modal-desc" id="deleteCategoryDesc">Are you sure?</p>
+    <form method="POST" id="deleteCategoryForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('deleteCategoryModal').classList.remove('active')">Cancel</button>
+        <button type="submit" class="btn-danger">Delete</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- Delete Form Modal -->
@@ -132,41 +233,281 @@
 </div>
 
 <script>
+var CSRF_TOKEN = {{ csrf_token()|tojson }};
+var categoriesData = [
+{% for c in categories %}
+    {id: {{ c.id }}, name: {{ c.name|tojson }}, scope_id: {{ c.scope_id }}, is_active: {{ c.is_active|tojson }}},
+{% endfor %}
+];
+var scopeNames = {};
+{% for s in active_scopes %}
+scopeNames['{{ s.id }}'] = {{ s.name|tojson }};
+{% endfor %}
+
+function filterForms() {
+    var search = document.getElementById('formSearch').value.toLowerCase();
+    var scope = document.getElementById('formScopeFilter').value;
+    var category = document.getElementById('formCategoryFilter').value;
+    var status = document.getElementById('formStatusFilter').value;
+    var tableBody = document.getElementById('formTableBody');
+    var rows = tableBody.querySelectorAll('tr');
+    var visible = 0;
+    rows.forEach(function(row) {
+        var name = row.dataset.name || '';
+        var rowScope = row.dataset.scope || '';
+        var rowCategory = row.dataset.category || '';
+        var rowStatus = row.dataset.status || '';
+        var match = true;
+        if (search && name.indexOf(search) === -1) match = false;
+        if (scope && rowScope !== scope) match = false;
+        if (category && rowCategory !== category) match = false;
+        if (status && rowStatus !== status) match = false;
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    document.getElementById('formEmptyFiltered').style.display = visible === 0 ? 'block' : 'none';
+    document.getElementById('formClear').style.display = (search || scope || category || status) ? 'inline-flex' : 'none';
+}
+
+function clearFormFilters() {
+    document.getElementById('formSearch').value = '';
+    document.getElementById('formScopeFilter').value = '';
+    document.getElementById('formCategoryFilter').value = '';
+    document.getElementById('formStatusFilter').value = '';
+    filterForms();
+}
+
 function openCreateFormModal() {
     document.getElementById('form_name').value = '';
     document.getElementById('createFormModal').classList.add('active');
 }
 
 // Filter categories by selected scope in create form modal
-document.addEventListener('DOMContentLoaded', function() {
+function filterCats() {
     var scopeSel = document.getElementById('new_form_scope');
     var catSel = document.getElementById('new_form_category');
-    function filterCats() {
-        if (!scopeSel || !catSel) return;
-        var sid = scopeSel.value;
-        var options = catSel.querySelectorAll('option');
-        options.forEach(function(opt, idx) {
-            if (idx === 0) { opt.hidden = false; return; } // "None"
-            var cs = opt.getAttribute('data-scope');
-            opt.hidden = !!sid && cs !== sid;
-        });
-        // Reset selection if current not matching
-        if (catSel.selectedOptions.length) {
-            var cur = catSel.selectedOptions[0];
-            if (cur && cur.getAttribute('data-scope') && cur.getAttribute('data-scope') !== sid) {
-                catSel.value = '';
-            }
+    if (!scopeSel || !catSel) return;
+    var sid = scopeSel.value;
+    var options = catSel.querySelectorAll('option');
+    options.forEach(function(opt, idx) {
+        if (idx === 0) { opt.hidden = false; return; } // placeholder
+        var cs = opt.getAttribute('data-scope');
+        opt.hidden = !!sid && cs !== sid;
+    });
+    // Reset selection if current not matching
+    if (catSel.selectedOptions.length) {
+        var cur = catSel.selectedOptions[0];
+        if (cur && cur.getAttribute('data-scope') && cur.getAttribute('data-scope') !== sid) {
+            catSel.value = '';
         }
     }
-    if (scopeSel) scopeSel.addEventListener('change', filterCats);
+}
+
+function renderCategorySelectOptions() {
+    var sel = document.getElementById('new_form_category');
+    if (!sel) return;
+    var currentVal = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    categoriesData.filter(function(c) { return c.is_active; }).forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.id;
+        opt.setAttribute('data-scope', c.scope_id);
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+    });
+    var stillExists = Array.prototype.some.call(sel.options, function(o) { return o.value === currentVal; });
+    sel.value = stillExists ? currentVal : '';
     filterCats();
+}
+
+function buildCategoryRow(cat) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);';
+
+    var left = document.createElement('div');
+    left.style.cssText = 'display:flex;align-items:center;gap:8px;';
+    var nameSpan = document.createElement('span');
+    nameSpan.style.cssText = 'font-size:13px;font-weight:500;';
+    nameSpan.textContent = cat.name;
+    var badge = document.createElement('span');
+    badge.className = cat.is_active ? 'badge badge-green' : 'badge badge-red';
+    badge.textContent = cat.is_active ? 'Active' : 'Inactive';
+    left.appendChild(nameSpan);
+    left.appendChild(badge);
+
+    var right = document.createElement('div');
+    right.style.cssText = 'display:flex;gap:6px;';
+
+    var editBtn = document.createElement('button');
+    editBtn.type = 'button'; editBtn.className = 'btn-secondary'; editBtn.style.cssText = 'padding:3px 8px;font-size:11px;';
+    editBtn.innerHTML = '<i data-lucide="edit" style="width:11px;height:11px;"></i>';
+    editBtn.addEventListener('click', function() { openEditCategoryModal(cat.id, cat.name); });
+
+    var toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button'; toggleBtn.className = 'btn-secondary'; toggleBtn.style.cssText = 'padding:3px 8px;font-size:11px;';
+    toggleBtn.innerHTML = '<i data-lucide="' + (cat.is_active ? 'pause' : 'play') + '" style="width:11px;height:11px;"></i>';
+    toggleBtn.addEventListener('click', function() { toggleCategoryAjax(cat.id); });
+
+    var delBtn = document.createElement('button');
+    delBtn.type = 'button'; delBtn.className = 'btn-danger'; delBtn.style.cssText = 'padding:3px 8px;font-size:11px;';
+    delBtn.innerHTML = '<i data-lucide="trash-2" style="width:11px;height:11px;"></i>';
+    delBtn.addEventListener('click', function() { openDeleteCategoryModal(cat.id, cat.name); });
+
+    right.appendChild(editBtn);
+    right.appendChild(toggleBtn);
+    right.appendChild(delBtn);
+    row.appendChild(left);
+    row.appendChild(right);
+    return row;
+}
+
+function renderCategoryGroups() {
+    document.querySelectorAll('.cat-scope-group').forEach(function(group) {
+        var sid = group.getAttribute('data-scope');
+        var items = categoriesData.filter(function(c) { return String(c.scope_id) === sid; });
+        group.innerHTML = '';
+        if (!items.length) {
+            var empty = document.createElement('div');
+            empty.style.cssText = 'text-align:center;padding:16px;color:var(--text-muted);font-size:13px;';
+            empty.textContent = 'No categories under this scope yet.';
+            group.appendChild(empty);
+        } else {
+            items.forEach(function(c) { group.appendChild(buildCategoryRow(c)); });
+        }
+    });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function refreshCategoryData() {
+    return fetch('/admin/categories/list', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            categoriesData = data.categories || [];
+            renderCategoryGroups();
+            renderCategorySelectOptions();
+        });
+}
+
+function postCategoryAction(url, formData) {
+    formData.set('csrf_token', CSRF_TOKEN);
+    return fetch(url, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    }).then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var scopeSel = document.getElementById('new_form_scope');
+    if (scopeSel) scopeSel.addEventListener('change', filterCats);
+
+    renderCategoryGroups();
+    renderCategorySelectOptions();
+
+    var addForm = document.getElementById('addCategoryForm');
+    if (addForm) {
+        addForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            postCategoryAction(addForm.action, new FormData(addForm)).then(function(res) {
+                if (res.data.success) {
+                    toast.success('', res.data.message);
+                    document.getElementById('manage_cat_name').value = '';
+                    refreshCategoryData();
+                } else {
+                    toast.error('', res.data.message);
+                }
+            });
+        });
+    }
+
+    var editForm = document.getElementById('editCategoryForm');
+    if (editForm) {
+        editForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            postCategoryAction(editForm.action, new FormData(editForm)).then(function(res) {
+                if (res.data.success) {
+                    toast.success('', res.data.message);
+                    document.getElementById('editCategoryModal').classList.remove('active');
+                    refreshCategoryData();
+                } else {
+                    toast.error('', res.data.message);
+                }
+            });
+        });
+    }
+
+    var deleteForm = document.getElementById('deleteCategoryForm');
+    if (deleteForm) {
+        deleteForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            postCategoryAction(deleteForm.action, new FormData(deleteForm)).then(function(res) {
+                if (res.data.success) {
+                    toast.success('', res.data.message);
+                    document.getElementById('deleteCategoryModal').classList.remove('active');
+                    refreshCategoryData();
+                } else {
+                    toast.error('', res.data.message);
+                    document.getElementById('deleteCategoryModal').classList.remove('active');
+                }
+            });
+        });
+    }
 });
+
+function toggleCategoryAjax(id) {
+    var fd = new FormData();
+    postCategoryAction('/admin/categories/' + id + '/toggle', fd).then(function(res) {
+        if (res.data.success) {
+            toast.success('', res.data.message);
+            refreshCategoryData();
+        } else {
+            toast.error('', res.data.message);
+        }
+    });
+}
 
 function openDeleteFormModal(id, name) {
     document.getElementById('deleteFormDesc').innerHTML = 'Are you sure? This form will be removed from the forms list. <br>Any existing tickets submitted on this form will NOT be affected. <br><br><strong>' + name + '</strong>';
     var f = document.getElementById('deleteFormForm');
     f.action = '/admin/forms/' + id + '/delete';
     document.getElementById('deleteFormModal').classList.add('active');
+}
+
+function openManageCategoriesModal() {
+    var scopeSel = document.getElementById('new_form_scope');
+    var sid = scopeSel ? scopeSel.value : '';
+    var noScope = document.getElementById('manageCategoriesNoScope');
+    var content = document.getElementById('manageCategoriesContent');
+    var label = document.getElementById('manageCategoriesScopeLabel');
+
+    if (!sid) {
+        noScope.style.display = 'block';
+        content.style.display = 'none';
+        label.textContent = 'Select a scope first';
+    } else {
+        noScope.style.display = 'none';
+        content.style.display = 'block';
+        label.textContent = 'Categories for ' + (scopeNames[sid] || 'selected scope');
+        document.querySelectorAll('.cat-scope-group').forEach(function(g) {
+            g.style.display = (g.getAttribute('data-scope') === sid) ? 'block' : 'none';
+        });
+        document.getElementById('manage_cat_scope_id').value = sid;
+    }
+    document.getElementById('manageCategoriesModal').classList.add('active');
+}
+
+function openEditCategoryModal(id, name) {
+    document.getElementById('edit_cat_name').value = name;
+    var f = document.getElementById('editCategoryForm');
+    f.action = '/admin/categories/' + id + '/edit';
+    document.getElementById('editCategoryModal').classList.add('active');
+}
+
+function openDeleteCategoryModal(id, name) {
+    document.getElementById('deleteCategoryDesc').innerHTML = 'Are you sure? This category will be permanently deleted. <br><br><strong>' + name + '</strong>';
+    var f = document.getElementById('deleteCategoryForm');
+    f.action = '/admin/categories/' + id + '/delete';
+    document.getElementById('deleteCategoryModal').classList.add('active');
 }
 </script>
 {% endblock %}

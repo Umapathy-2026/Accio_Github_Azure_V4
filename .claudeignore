@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.lock
+*.min.js
+target/
+__pycache__/
+venv/
+*.pyc

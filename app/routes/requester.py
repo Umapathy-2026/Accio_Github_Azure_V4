@@ -84,18 +84,18 @@ def new_ticket():
         # Collect dynamic form field values into payload
         payload = {}
         for field in issue_form.fields:
-            field_name = field.get('name')
+            field_id = field.get('id')
             field_type = field.get('type')
             field_required = field.get('required', False)
 
             if field_type == 'file':
-                file = request.files.get(field_name)
+                file = request.files.get(field_id)
                 if file and file.filename:
                     from app.utils.storage import allowed_file
                     is_valid, error_msg = allowed_file(file)
                     if is_valid:
                         original_name, saved_name = save_file(file)
-                        payload[field_name] = {
+                        payload[field_id] = {
                             'original_name': original_name,
                             'saved_name': saved_name
                         }
@@ -103,11 +103,11 @@ def new_ticket():
                         flash(error_msg or f'Invalid file type for {field.get("label")}.', 'error')
                         return redirect(url_for('req.new_ticket'))
             else:
-                value = request.form.get(field_name, '').strip()
+                value = request.form.get(field_id, '').strip()
                 if field_required and not value:
                     flash(f'{field.get("label")} is required.', 'error')
                     return redirect(url_for('req.new_ticket'))
-                payload[field_name] = value
+                payload[field_id] = value
 
         # Handle main attachment
         attachment_name = None
@@ -133,7 +133,7 @@ def new_ticket():
         subject = None
         description = None
         for field in issue_form.fields:
-            fname = field.get('name', '')
+            fname = field.get('id', '')
             if fname.lower() == 'subject' and payload.get(fname):
                 subject = payload.pop(fname)
             if fname.lower() == 'description' and payload.get(fname):

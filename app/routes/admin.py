@@ -390,12 +390,14 @@ def create_form():
         flash('Invalid scope selected.', 'error')
         return redirect(url_for('admin.forms'))
 
-    cat_obj = None
-    if category_id:
-        cat_obj = Category.query.filter_by(id=category_id, is_active=True).first()
-        if not cat_obj or cat_obj.scope_id != scope_id:
-            flash('Invalid category selected for the chosen scope.', 'error')
-            return redirect(url_for('admin.forms'))
+    if not category_id:
+        flash('Category is required. Please select or create a category for this scope.', 'error')
+        return redirect(url_for('admin.forms'))
+
+    cat_obj = Category.query.filter_by(id=category_id, is_active=True).first()
+    if not cat_obj or cat_obj.scope_id != scope_id:
+        flash('Invalid category selected for the chosen scope.', 'error')
+        return redirect(url_for('admin.forms'))
 
     from copy import deepcopy
     default_fields = deepcopy(DEFAULT_FORM_FIELDS)
@@ -530,17 +532,21 @@ def toggle_scope(scope_id):
 # Categories Management
 ############################
 
-@admin_bp.route('/categories', methods=['GET'])
+def _is_ajax():
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+
+def _category_dict(cat):
+    return {'id': cat.id, 'name': cat.name, 'scope_id': cat.scope_id, 'is_active': cat.is_active}
+
+
+@admin_bp.route('/categories/list', methods=['GET'])
 @login_required
 @role_required('admin')
-def categories():
-    # Group by scope
-    scopes = Scope.query.order_by(Scope.name.asc()).all()
-    # Eager-load categories for template grouping
+def categories_list():
     cats = Category.query.order_by(Category.scope_id.asc(), Category.name.asc()).all()
-    # Active scopes for creation dropdown
-    active_scopes = Scope.query.filter_by(is_active=True).order_by(Scope.name.asc()).all()
-    return render_template('admin/categories.html', scopes=scopes, categories=cats, active_scopes=active_scopes)
+    return jsonify({'categories': [_category_dict(c) for c in cats]})
+
 
 @admin_bp.route('/categories/create', methods=['POST'])
 @login_required
@@ -549,12 +555,18 @@ def create_category():
     name = (request.form.get('name') or '').strip()
     scope_id = request.form.get('scope_id', type=int)
     if not name or not scope_id:
-        flash('Category name and scope are required.', 'error')
-        return redirect(url_for('admin.categories'))
+        msg = 'Category name and scope are required.'
+        if _is_ajax():
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, 'error')
+        return redirect(url_for('admin.forms'))
     scope = Scope.query.filter_by(id=scope_id, is_active=True).first()
     if not scope:
-        flash('Invalid scope selected.', 'error')
-        return redirect(url_for('admin.categories'))
+        msg = 'Invalid scope selected.'
+        if _is_ajax():
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, 'error')
+        return redirect(url_for('admin.forms'))
     # Enforce unique per scope
     from sqlalchemy import func
     existing = Category.query.filter(
@@ -562,15 +574,21 @@ def create_category():
         func.lower(Category.name) == name.lower()
     ).first()
     if existing:
-        flash('A category with this name already exists in the selected scope.', 'error')
-        return redirect(url_for('admin.categories'))
+        msg = 'A category with this name already exists in the selected scope.'
+        if _is_ajax():
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, 'error')
+        return redirect(url_for('admin.forms'))
     cat = Category(name=name, scope_id=scope_id, is_active=True)
     db.session.add(cat)
     db.session.flush()
     log_admin_action('CATEGORY_CREATED', 'category', cat.id, {'name': name, 'scope_id': scope_id})
     db.session.commit()
-    flash(f'Category "{name}" created successfully.', 'success')
-    return redirect(url_for('admin.categories'))
+    msg = f'Category "{name}" created successfully.'
+    if _is_ajax():
+        return jsonify({'success': True, 'message': msg, 'category': _category_dict(cat)})
+    flash(msg, 'success')
+    return redirect(url_for('admin.forms'))
 
 @admin_bp.route('/categories/<int:category_id>/toggle', methods=['POST'])
 @login_required
@@ -581,13 +599,94 @@ def toggle_category(category_id):
     if cat.is_active:
         active_forms = IssueForm.query.filter_by(category_id=cat.id, is_active=True, is_deleted=False).count()
         if active_forms > 0:
-            flash(f'{active_forms} forms are active under this category. Deactivate those forms first.', 'error')
-            return redirect(url_for('admin.categories'))
+            msg = f'{active_forms} forms are active under this category. Deactivate those forms first.'
+            if _is_ajax():
+                return jsonify({'success': False, 'message': msg}), 400
+            flash(msg, 'error')
+            return redirect(url_for('admin.forms'))
     cat.is_active = not cat.is_active
     log_admin_action('CATEGORY_TOGGLED', 'category', cat.id, {'is_active': cat.is_active})
     db.session.commit()
-    flash(f'Category "{cat.name}" {"activated" if cat.is_active else "deactivated"}.', 'success')
-    return redirect(url_for('admin.categories'))
+    msg = f'Category "{cat.name}" {"activated" if cat.is_active else "deactivated"}.'
+    if _is_ajax():
+        return jsonify({'success': True, 'message': msg, 'category': _category_dict(cat)})
+    flash(msg, 'success')
+    return redirect(url_for('admin.forms'))
+
+@admin_bp.route('/categories/<int:category_id>/edit', methods=['POST'])
+@login_required
+@role_required('admin')
+def edit_category(category_id):
+    cat = Category.query.get_or_404(category_id)
+    name = (request.form.get('name') or '').strip()
+    if not name:
+        msg = 'Category name is required.'
+        if _is_ajax():
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, 'error')
+        return redirect(url_for('admin.forms'))
+    from sqlalchemy import func
+    existing = Category.query.filter(
+        Category.scope_id == cat.scope_id,
+        func.lower(Category.name) == name.lower(),
+        Category.id != cat.id
+    ).first()
+    if existing:
+        msg = 'A category with this name already exists in the selected scope.'
+        if _is_ajax():
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, 'error')
+        return redirect(url_for('admin.forms'))
+    old_name = cat.name
+    cat.name = name
+    log_admin_action('CATEGORY_UPDATED', 'category', cat.id, {'old_name': old_name, 'new_name': name, 'scope_id': cat.scope_id})
+    db.session.commit()
+    msg = f'Category renamed to "{name}".'
+    if _is_ajax():
+        return jsonify({'success': True, 'message': msg, 'category': _category_dict(cat)})
+    flash(msg, 'success')
+    return redirect(url_for('admin.forms'))
+
+@admin_bp.route('/categories/<int:category_id>/delete', methods=['POST'])
+@login_required
+@role_required('admin')
+def delete_category(category_id):
+    cat = Category.query.get_or_404(category_id)
+    # Forms that are still "live" (not soft-deleted) block category deletion outright.
+    active_forms = IssueForm.query.filter_by(category_id=cat.id, is_deleted=False).all()
+    if active_forms:
+        names = ', '.join(f.name for f in active_forms[:5])
+        if len(active_forms) > 5:
+            names += f', and {len(active_forms) - 5} more'
+        msg = f'{len(active_forms)} form(s) are still linked to this category ({names}). Delete or move those forms first.'
+        if _is_ajax():
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, 'error')
+        return redirect(url_for('admin.forms'))
+    # Soft-deleted forms may still hold a foreign key reference to this category
+    # (their category_id was never cleared). Detach them so the DB-level FK
+    # constraint doesn't reject the category deletion.
+    deleted_forms = IssueForm.query.filter_by(category_id=cat.id, is_deleted=True).all()
+    for f in deleted_forms:
+        f.category_id = None
+    cat_id = cat.id
+    cat_name = cat.name
+    log_admin_action('CATEGORY_DELETED', 'category', cat.id, {'name': cat.name, 'scope_id': cat.scope_id})
+    try:
+        db.session.delete(cat)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        msg = 'Could not delete this category because other records still reference it.'
+        if _is_ajax():
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, 'error')
+        return redirect(url_for('admin.forms'))
+    msg = f'Category "{cat_name}" deleted.'
+    if _is_ajax():
+        return jsonify({'success': True, 'message': msg, 'category_id': cat_id})
+    flash(msg, 'success')
+    return redirect(url_for('admin.forms'))
 
 def _sanitize_filename_part(value, default='all'):
     return re.sub(r'[^a-zA-Z0-9_\-]', '', str(value or default))[:30]
@@ -628,6 +727,7 @@ def export_tickets_standard():
     log_admin_action('EXPORT_TRIGGERED', 'ticket', None,
                      {'view': 'all_tickets', 'status': status, 'scope': scope,
                       'from': created_from, 'to': created_to, 'count': len(tickets)})
+    db.session.commit()
 
     wb = _export_build_workbook(tickets)
     output = io.BytesIO()

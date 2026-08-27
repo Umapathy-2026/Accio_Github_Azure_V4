@@ -1,19 +1,41 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 from flask import current_app
 from markupsafe import escape
 
 
+def _get_graph_token():
+    """
+    Acquire an app-only access token for Microsoft Graph using the client
+    credentials flow (MSAL). This uses the same App Registration already
+    configured for Entra ID SSO (ENTRA_CLIENT_ID / ENTRA_CLIENT_SECRET /
+    ENTRA_TENANT_ID), with the Mail.Send Application permission granted
+    separately by IT.
+    """
+    import msal
+    app = current_app._get_current_object()
+    authority = f"https://login.microsoftonline.com/{app.config['ENTRA_TENANT_ID']}"
+    msal_app = msal.ConfidentialClientApplication(
+        client_id=app.config['ENTRA_CLIENT_ID'],
+        client_credential=app.config['ENTRA_CLIENT_SECRET'],
+        authority=authority
+    )
+    # .default with app-only auth uses whatever Application permissions
+    # (e.g. Mail.Send) were granted with admin consent on the App Registration.
+    result = msal_app.acquire_token_for_client(scopes=["https://graph.microsoft.com/.default"])
+    if 'access_token' not in result:
+        raise RuntimeError(f"Failed to acquire Graph token: {result.get('error_description', result)}")
+    return result['access_token']
+
+
 def send_email(to_email, subject, body_html):
     """
-    Send an HTML email via Office365 SMTP.
-    In production, this will connect to Azure Communication Services or similar.
+    Send an HTML email via Microsoft Graph API, using the mailbox configured
+    in MAIL_SENDER_ADDRESS as the sender (app-only auth — sends "as" that
+    mailbox, not on behalf of the logged-in user).
     """
     app = current_app._get_current_object()
 
     # Dev mode: log email to stdout instead of sending
-    # Enable by setting MAIL_DEV_MODE=true in App Service environment variables
     if app.config.get('MAIL_DEV_MODE'):
         app.logger.info(
             f"\n{'='*60}\n"
@@ -24,28 +46,44 @@ def send_email(to_email, subject, body_html):
         )
         return True
 
-    username = app.config.get('MAIL_USERNAME')
-    password = app.config.get('MAIL_PASSWORD')
-
-    if not username or not password:
-        app.logger.warning('Mail credentials not configured. Skipping email send.')
+    sender = app.config.get('MAIL_SENDER_ADDRESS')
+    if not sender:
+        app.logger.warning('MAIL_SENDER_ADDRESS not configured. Skipping email send.')
         return False
 
-    msg = MIMEMultipart('alternative')
-    msg['From'] = username
-    msg['To'] = to_email
-    msg['Subject'] = subject
+    try:
+        token = _get_graph_token()
+    except Exception as e:
+        app.logger.error(f'Failed to acquire Graph token for email send: {e}')
+        return False
 
-    msg.attach(MIMEText(body_html, 'html'))
+    graph_message = {
+        "message": {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": body_html},
+            "toRecipients": [{"emailAddress": {"address": to_email}}]
+        },
+        "saveToSentItems": "false"
+    }
 
     try:
-        with smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT']) as server:
-            server.starttls()
-            server.login(username, password)
-            server.sendmail(username, [to_email], msg.as_string())
-        return True
+        resp = requests.post(
+            f"https://graph.microsoft.com/v1.0/users/{sender}/sendMail",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            },
+            json=graph_message,
+            timeout=15
+        )
+        if resp.status_code == 202:
+            return True
+        # 403 here typically means an Exchange Application Access Policy
+        # restricts this app to a different mailbox than `sender`.
+        app.logger.error(f'Graph sendMail failed ({resp.status_code}): {resp.text[:500]}')
+        return False
     except Exception as e:
-        app.logger.error(f'Failed to send email to {to_email}: {str(e)}')
+        app.logger.error(f'Failed to send email to {to_email} via Graph: {str(e)}')
         return False
 
 

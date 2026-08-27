@@ -21,7 +21,7 @@
     <p style="font-size:14px;color:var(--text-muted);margin-top:8px;">{{ ticket.issue_form.name }} &middot; Created {{ ticket.created_at.strftime('%d %b %Y at %H:%M') }}</p>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" class="detail-grid">
     <!-- Left Column: Ticket Details -->
     <div>
         <div class="card" style="margin-bottom:24px;">
@@ -97,7 +97,7 @@
 
         {% if ticket.current_status == 'Needs Clarification' %}
         <!-- Clarification Form -->
-        <div class="card" style="border:1px solid #fed7aa;">
+        <div class="card">
             <h2 style="font-size:16px;font-weight:600;margin:0 0 16px;color:#9a3412;">
                 <i data-lucide="message-square" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i>
                 Provide Clarification

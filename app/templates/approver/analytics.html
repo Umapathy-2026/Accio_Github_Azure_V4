@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Analytics - ACCIO{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div style="margin-bottom:28px;">
+    <h1 style="font-size:22px;font-weight:700;color:var(--text);margin:0;">Analytics</h1>
+    <p style="font-size:14px;color:var(--text-muted);margin-top:4px">Ticket volume by category, across the scopes you have access to</p>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <select class="filter-select" id="scopeFilter" onchange="applyAnalyticsFilters()">
+        <option value="">All My Scopes</option>
+        {% for s in scopes %}
+        <option value="{{ s.name }}" {% if selected_scope == s.name %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+    </select>
+    <select class="filter-select" id="userFilter" onchange="applyAnalyticsFilters()">
+        <option value="">All Users</option>
+        {% for uid, uname in users_list %}
+        <option value="{{ uid }}" {% if selected_user == uid %}selected{% endif %}>{{ uname }}</option>
+        {% endfor %}
+    </select>
+    <button class="btn-secondary" id="analyticsClear" onclick="clearAnalyticsFilters()" style="{% if not selected_scope and not selected_user %}display:none;{% endif %}padding:6px 12px;font-size:13px;">
+        <i data-lucide="x" style="width:14px;height:14px;"></i> Clear
+    </button>
+</div>
+
+<!-- KPI -->
+<div class="kpi-grid" style="margin-bottom:24px;grid-template-columns:repeat(1, minmax(0,220px));">
+    <div class="card" style="position:relative;">
+        <i data-lucide="ticket" style="position:absolute;top:20px;right:20px;width:20px;height:20px;color:var(--primary);"></i>
+        <p style="font-size:32px;font-weight:700;color:var(--text);margin:0;">{{ total_count }}</p>
+        <p style="font-size:13px;color:var(--text-muted);margin:4px 0 0;">Total Tickets</p>
+    </div>
+</div>
+
+<div class="card" style="display:flex;gap:32px;flex-wrap:wrap;align-items:center;">
+    {% if category_data %}
+    <div style="width:320px;height:320px;flex-shrink:0;">
+        <canvas id="categoryPieChart"></canvas>
+    </div>
+    <div style="flex:1;min-width:220px;">
+        <h3 style="font-size:15px;font-weight:600;margin:0 0 12px;">Tickets by Category</h3>
+        <table>
+            <thead>
+                <tr><th>Category</th><th style="width:100px;">Tickets</th></tr>
+            </thead>
+            <tbody>
+                {% for c in category_data %}
+                <tr>
+                    <td>{{ c.label }}</td>
+                    <td style="color:var(--text-muted);font-size:13px;">{{ c.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color:var(--text-muted);font-size:14px;margin:0;">No tickets found for the selected filters.</p>
+    {% endif %}
+</div>
+
+<script>
+function applyAnalyticsFilters() {
+    var scope = document.getElementById('scopeFilter').value;
+    var userId = document.getElementById('userFilter').value;
+    var params = new URLSearchParams();
+    if (scope) params.set('scope', scope);
+    if (userId) params.set('user_id', userId);
+    window.location = '{{ url_for("appr.analytics") }}' + (params.toString() ? '?' + params.toString() : '');
+}
+
+function clearAnalyticsFilters() {
+    window.location = '{{ url_for("appr.analytics") }}';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    lucide.createIcons();
+    var canvas = document.getElementById('categoryPieChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    var labels = {{ category_data | map(attribute='label') | list | tojson }};
+    var counts = {{ category_data | map(attribute='count') | list | tojson }};
+    var palette = ['#f0902e', '#b9d3f0', '#b7e293', '#f0ada0', '#f6dc86', '#f7c98c', '#dcc9a8', '#e07a1a'];
+    new Chart(canvas.getContext('2d'), {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: counts,
+                backgroundColor: labels.map(function(_, i) { return palette[i % palette.length]; }),
+                borderColor: '#fdf8f0',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#2c2622', font: { family: 'Inter', size: 12 } }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

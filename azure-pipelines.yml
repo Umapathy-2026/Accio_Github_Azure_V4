@@ -50,9 +50,37 @@ stages:
       displayName: 'Publish artifact'
       artifact: '$(artifactName)'
 
+- stage: Test
+  displayName: 'Test'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: TestJob
+    displayName: 'Run pytest suite'
+    pool:
+      vmImage: 'ubuntu-22.04'
+    steps:
+
+    - task: UsePythonVersion@0
+      displayName: 'Use Python $(pythonVersion)'
+      inputs:
+        versionSpec: '$(pythonVersion)'
+        addToPath: true
+
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+      displayName: 'Install dependencies (incl. test tools)'
+
+    - script: |
+        export SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+        export FLASK_ENV=testing
+        pytest -v
+      displayName: 'Run pytest'
+
 - stage: Deploy
   displayName: 'Deploy to accio-dev'
-  dependsOn: Build
+  dependsOn: Test
   condition: succeeded()
   jobs:
   - deployment: DeployToAppService

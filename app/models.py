@@ -8,6 +8,16 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
+def aware_utc(dt):
+    """SQLite (and SQL Server DATETIME) drop tzinfo on write, so values read
+    back from the DB are naive even though they were stored as UTC. Attach
+    UTC tzinfo before comparing against a tz-aware datetime.now(timezone.utc)
+    to avoid 'can't compare offset-naive and offset-aware datetimes'."""
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 class UserRole(str, enum.Enum):
     USER = 'user'
     APPROVER = 'approver'
@@ -99,6 +109,11 @@ class User(UserMixin, db.Model):
 
     def get_id(self):
         return str(self.id)
+
+    @property
+    def is_locked(self):
+        locked_until = aware_utc(self.locked_until)
+        return bool(locked_until and locked_until > utcnow())
 
     def __repr__(self):
         return f'<User {self.email}>'

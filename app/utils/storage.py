@@ -28,15 +28,42 @@ def allowed_file(file):
         mime = magic.from_buffer(header, mime=True)
         if mime not in ALLOWED_MIMES:
             return False, f'File content type {mime} is not permitted.'
-    except ImportError:
-        pass  # fallback to extension-only validation if python-magic not available
+    except (ImportError, OSError) as e:
+        # ImportError: python-magic package not installed.
+        # OSError: package installed but the underlying libmagic1 shared
+        # library isn't present on the system (e.g. App Service without
+        # apt access) — python-magic raises this at import/use time, not
+        # ImportError, so it must be caught here too or uploads 500.
+        current_app.logger.warning("python-magic unavailable (%s); falling back to extension-only validation.", e)
     return True, None
+
+
+def _get_blob_service_client():
+    """
+    Build a BlobServiceClient using Managed Identity, matching the same
+    auth pattern already used for Azure SQL (no account keys/connection
+    strings — those are long-lived secrets with full account access and
+    don't tie back to an identity for auditing).
+
+    Requires AZURE_STORAGE_ACCOUNT_URL (e.g.
+    https://jeef01npeuwdvaccio01.blob.core.windows.net) and a Managed
+    Identity with Storage Blob Data Contributor on the storage account.
+    """
+    from azure.identity import DefaultAzureCredential
+    from azure.storage.blob import BlobServiceClient
+
+    account_url = current_app.config.get('AZURE_STORAGE_ACCOUNT_URL', '')
+    if not account_url:
+        return None
+    credential = DefaultAzureCredential()
+    return BlobServiceClient(account_url=account_url, credential=credential)
 
 
 def save_file(file):
     """
     Save uploaded file.
-    - If AZURE_STORAGE_CONNECTION_STRING is set: uploads to Azure Blob Storage.
+    - If AZURE_STORAGE_ACCOUNT_URL is set: uploads to Azure Blob Storage
+      using the App Service's Managed Identity.
     - Otherwise: saves to local filesystem (dev only).
     Returns (original_filename, unique_name).
     """
@@ -46,13 +73,12 @@ def save_file(file):
     original_filename = secure_filename(file.filename)
     unique_name = f'{uuid.uuid4().hex}_{original_filename}'
 
-    conn_str = current_app.config.get('AZURE_STORAGE_CONNECTION_STRING', '')
+    account_url = current_app.config.get('AZURE_STORAGE_ACCOUNT_URL', '')
     container = current_app.config.get('AZURE_STORAGE_CONTAINER', 'accio-uploads')
 
-    if conn_str:
+    if account_url:
         try:
-            from azure.storage.blob import BlobServiceClient
-            blob_service = BlobServiceClient.from_connection_string(conn_str)
+            blob_service = _get_blob_service_client()
             blob_client = blob_service.get_blob_client(container=container, blob=unique_name)
             file.seek(0)
             blob_client.upload_blob(file.read(), overwrite=True)
@@ -78,28 +104,40 @@ def get_download_url(blob_name, original_name=None):
     """
     Returns a short-lived SAS URL for Azure Blob (production),
     or None if running locally.
+
+    Uses a user delegation SAS — signed by the Managed Identity's
+    delegated permissions rather than an account key, since Managed
+    Identity has no account key to hand over. Requires the Managed
+    Identity to have Storage Blob Data Contributor (or similar) on the
+    storage account.
     """
-    conn_str = current_app.config.get('AZURE_STORAGE_CONNECTION_STRING', '')
+    account_url = current_app.config.get('AZURE_STORAGE_ACCOUNT_URL', '')
     container = current_app.config.get('AZURE_STORAGE_CONTAINER', 'accio-uploads')
 
-    if not conn_str:
+    if not account_url:
         return None
 
     try:
-        from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+        from azure.storage.blob import generate_blob_sas, BlobSasPermissions
         from datetime import datetime, timezone, timedelta
 
-        client = BlobServiceClient.from_connection_string(conn_str)
+        client = _get_blob_service_client()
         account_name = client.account_name
-        account_key = client.credential.account_key
+
+        delegation_key_start = datetime.now(timezone.utc)
+        delegation_key_expiry = delegation_key_start + timedelta(hours=1)
+        user_delegation_key = client.get_user_delegation_key(
+            key_start_time=delegation_key_start,
+            key_expiry_time=delegation_key_expiry,
+        )
 
         sas_token = generate_blob_sas(
             account_name=account_name,
             container_name=container,
             blob_name=blob_name,
-            account_key=account_key,
+            user_delegation_key=user_delegation_key,
             permission=BlobSasPermissions(read=True),
-            expiry=datetime.now(timezone.utc) + timedelta(hours=1),
+            expiry=delegation_key_expiry,
             content_disposition=f'attachment; filename="{original_name or blob_name}"'
         )
         return f'https://{account_name}.blob.core.windows.net/{container}/{blob_name}?{sas_token}'

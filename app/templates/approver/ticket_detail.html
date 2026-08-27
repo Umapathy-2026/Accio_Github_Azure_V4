@@ -30,7 +30,7 @@
     <p style="font-size:14px;color:var(--text-muted);margin-top:8px;">{{ ticket.issue_form.name }} &middot; Raised by {{ ticket.creator.display_name }} &middot; {{ ticket.created_at.strftime('%d %b %Y at %H:%M') }}</p>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;" class="detail-grid">
     <!-- Left Column -->
     <div>
         <div class="card" style="margin-bottom:24px;">
@@ -63,7 +63,7 @@
             </div>
         </div>
         {% if ticket.payload and ticket.payload.get('__clarification__') %}
-        <div class="card" style="border:1px solid #fed7aa;margin-bottom:24px;">
+        <div class="card" style="margin-bottom:24px;">
             <h2 style="font-size:16px;font-weight:600;margin:0 0 16px;color:#9a3412;"><i data-lucide="message-square" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Clarification Response</h2>
             <p style="font-size:14px;margin:0 0 8px;white-space:pre-wrap;">{{ ticket.payload.get('__clarification__') }}</p>
         </div>

@@ -40,7 +40,8 @@
     </div>
 
 <div class="card" style="padding:0;overflow:hidden;">
-    <table id="ticketTable" style="display:block;">
+<div class="table-wrap">
+    <table id="ticketTable">
         <thead>
             <tr>
                 <th onclick="sortTable(0)" data-col="0">Ticket # <span class="sort-arrow"></span></th>
@@ -82,6 +83,7 @@
             {% endfor %}
         </tbody>
     </table>
+</div>
     <div id="emptyState" style="display:none;text-align:center;padding:64px 32px;color:var(--text-muted);">
         <i data-lucide="inbox" style="width:40px;height:40px;margin:0 auto 16px;display:block;color:var(--text-faint);"></i>
         <p style="font-size:15px;font-weight:500;margin-bottom:6px">No tickets match your filters</p>
@@ -94,15 +96,15 @@
     <div class="pagination-info">Page {{ pagination.page }} of {{ pagination.pages }}</div>
     <div class="pagination-controls">
         {% if pagination.has_prev %}
-        <a class="page-btn" href="{{ url_for('appr.request_history', page=pagination.prev_num, status=filters.status if filters else '', scope=filters.scope if filters else '', **({'from': filters.from} if filters and filters.from else {}), **({'to': filters.to} if filters and filters.to else {})) }}">‹</a>
+        <a class="page-btn" href="{{ url_for('appr.request_history', page=pagination.prev_num, status=filters.status if filters else '', scope=filters.scope if filters else '', from=filters.from if filters else '', to=filters.to if filters else '') }}">‹</a>
         {% else %}
         <button class="page-btn" disabled>‹</button>
         {% endif %}
         {% for p in range(1, pagination.pages + 1) %}
-        <a class="page-btn{% if p == pagination.page %} active{% endif %}" href="{{ url_for('appr.request_history', page=p, status=filters.status if filters else '', scope=filters.scope if filters else '', **({'from': filters.from} if filters and filters.from else {}), **({'to': filters.to} if filters and filters.to else {})) }}">{{ p }}</a>
+        <a class="page-btn{% if p == pagination.page %} active{% endif %}" href="{{ url_for('appr.request_history', page=p, status=filters.status if filters else '', scope=filters.scope if filters else '', from=filters.from if filters else '', to=filters.to if filters else '') }}">{{ p }}</a>
         {% endfor %}
         {% if pagination.has_next %}
-        <a class="page-btn" href="{{ url_for('appr.request_history', page=pagination.next_num, status=filters.status if filters else '', scope=filters.scope if filters else '', **({'from': filters.from} if filters and filters.from else {}), **({'to': filters.to} if filters and filters.to else {})) }}">›</a>
+        <a class="page-btn" href="{{ url_for('appr.request_history', page=pagination.next_num, status=filters.status if filters else '', scope=filters.scope if filters else '', from=filters.from if filters else '', to=filters.to if filters else '') }}">›</a>
         {% else %}
         <button class="page-btn" disabled>›</button>
         {% endif %}
